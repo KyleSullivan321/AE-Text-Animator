@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.kylesullivan.aetextanimator" ExtensionBundleVersion="1.0.3" ExtensionBundleName="AE Text Animator" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ExtensionList>
+    <Extension Id="com.kylesullivan.aetextanimator.panel" Version="1.0.3" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <!-- AEFT = After Effects; 15.0 = CC 2018+ -->
+      <Host Name="AEFT" Version="[15.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="9.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.kylesullivan.aetextanimator.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./client/index.html</MainPath>
+          <ScriptPath>./host/textanimator.jsx</ScriptPath>
+          <!-- CEF's GPU compositor paints CEP panels as a solid black rectangle on
+               some macOS machines (notably Apple Silicon). Software rendering is the
+               standard workaround and costs nothing here: the panel is a small 2D
+               canvas + DOM, not a game. -->
+          <CEFCommandLine>
+            <Parameter>--disable-gpu</Parameter>
+            <Parameter>--disable-gpu-compositing</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>AE Text Animator</Menu>
+          <Geometry>
+            <Size>
+              <Height>560</Height>
+              <Width>280</Width>
+            </Size>
+            <MinSize>
+              <Height>200</Height>
+              <Width>240</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>1400</Height>
+              <Width>600</Width>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

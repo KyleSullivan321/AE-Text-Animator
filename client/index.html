@@ -1,0 +1,733 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  *{box-sizing:border-box}
+  /* Force a fixed dark palette — don't inherit Figma's (light) theme vars.
+     Set on body/#root so every descendant `var(--figma-color-*)` resolves here. */
+  body,#root{
+    --figma-color-bg:#202021;
+    --figma-color-bg-secondary:#2c2c2e;
+    --figma-color-bg-hover:#37373a;
+    --figma-color-bg-brand:#0d99ff;
+    --figma-color-bg-brand-hover:#47adff;
+    --figma-color-border:#3a3a3d;
+    --figma-color-border-brand:#0d99ff;
+    --figma-color-text:#f5f5f7;
+    --figma-color-text-secondary:#b0b0b6;
+    --figma-color-text-brand:#5cb2ff;
+    --figma-color-text-onbrand:#ffffff;
+  }
+  html,body{margin:0;padding:0;height:100%;width:100%;overflow-x:hidden;overflow-y:auto;font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:11px;color:var(--figma-color-text)}
+  body{background:var(--figma-color-bg)}
+  #root{display:flex;flex-direction:column;width:100%;overflow-x:hidden}
+
+  .sec{padding:5px 0;border-top:1px solid var(--figma-color-border)}
+  .sec:first-child{border-top:none}
+  .sec-hd{padding:4px 10px 2px;font-size:10px;font-weight:600;color:var(--figma-color-text-secondary);text-transform:uppercase;letter-spacing:.04em}
+  .row{display:flex;align-items:center;padding:2px 10px;min-height:26px;gap:8px}
+  .lbl{flex:0 0 78px;font-size:11px;color:var(--figma-color-text)}
+  .ctrl{flex:1;min-width:0}
+
+  /* Preview */
+  .pv-box{position:relative;margin:8px 10px 4px;background:#111;border-radius:6px;height:150px;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;border:1px solid #2a2a2a}
+  .pv-box:hover .pv-hint{opacity:1}
+  .pv-hint{position:absolute;top:4px;right:7px;font-size:9px;color:rgba(255,255,255,.35);opacity:0;transition:opacity .2s;pointer-events:none}
+  .pv-inner{font-family:var(--font-family,'Inter',system-ui,sans-serif);font-size:22px;font-weight:500;color:#fff;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;padding:0 12px;line-height:1.3;max-width:100%;word-break:break-word}
+  .pv-inner span{display:inline-block;will-change:transform,opacity,filter;transform-origin:center bottom}
+  .pv-inner .lb{display:block;width:100%;text-align:center}
+  .pv-empty{font-size:10px;color:rgba(255,255,255,.25);pointer-events:none}
+
+  /* Preset grid */
+  .pg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px 10px}
+  .pb{padding:5px 6px;border-radius:4px;border:1px solid var(--figma-color-border);background:var(--figma-color-bg-secondary);cursor:pointer;font-family:inherit;font-size:10px;font-weight:500;color:var(--figma-color-text);text-align:center;transition:border-color .1s,background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pb:hover{border-color:var(--figma-color-border-brand,var(--figma-color-bg-brand));background:var(--figma-color-bg-hover)}
+  .pb.active{border-color:var(--figma-color-bg-brand);color:var(--figma-color-text-brand);font-weight:600}
+  .pb.cp{position:relative}
+  .pb.cp .del{position:absolute;top:1px;right:4px;font-size:11px;color:var(--figma-color-text-secondary);opacity:0;line-height:1}
+  .pb.cp:hover .del{opacity:.9}
+  .save-row{display:flex;align-items:center;gap:5px;padding:3px 10px}
+  .slnk{font-size:10px;color:var(--figma-color-text-brand);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;opacity:.85}
+  .slnk:hover{opacity:1;text-decoration:underline}
+  .sinp{flex:1;height:24px;border:1px solid var(--figma-color-border);border-radius:3px;background:var(--figma-color-bg-secondary);color:var(--figma-color-text);font-family:inherit;font-size:10px;padding:0 6px;outline:none}
+  .sinp:focus{border-color:var(--figma-color-bg-brand)}
+  .sok{height:24px;padding:0 9px;border-radius:3px;background:var(--figma-color-bg-brand);border:none;color:var(--figma-color-text-onbrand,#fff);font-family:inherit;font-size:10px;font-weight:600;cursor:pointer}
+  .scx{height:24px;padding:0 7px;border-radius:3px;background:none;border:1px solid var(--figma-color-border);color:var(--figma-color-text-secondary);font-family:inherit;font-size:10px;cursor:pointer}
+
+  /* Sliders (native) */
+  .sld{display:flex;align-items:center;gap:7px}
+  .sld input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:4px;border-radius:2px;outline:none;cursor:pointer;background:var(--figma-color-bg-secondary)}
+  .sld input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;background:var(--figma-color-bg-brand);border:2px solid var(--figma-color-bg);cursor:pointer;box-shadow:0 0 0 1px var(--figma-color-border)}
+  .sld input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--figma-color-bg-brand);border:2px solid var(--figma-color-bg);cursor:pointer}
+  .sld-num{width:44px;height:22px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--figma-color-text);font-family:inherit;font-size:10px;text-align:right;padding:0 3px;outline:none;-moz-appearance:textfield}
+  .sld-num::-webkit-inner-spin-button,.sld-num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .sld-num:hover{border-color:var(--figma-color-border)}
+  .sld-num:focus{border-color:var(--figma-color-bg-brand);background:var(--figma-color-bg-secondary)}
+  .sld-unit{font-size:10px;color:var(--figma-color-text-secondary);width:10px}
+
+  /* Toggle buttons */
+  .tbr{display:flex;gap:3px}
+  .tb{flex:1;height:24px;border-radius:4px;border:1px solid var(--figma-color-border);background:var(--figma-color-bg-secondary);cursor:pointer;font-family:inherit;font-size:10px;font-weight:500;color:var(--figma-color-text);white-space:nowrap;transition:border-color .1s,background .1s}
+  .tb:hover{border-color:var(--figma-color-bg-brand);background:var(--figma-color-bg-hover)}
+  .tb.on{border-color:var(--figma-color-bg-brand);background:color-mix(in srgb,var(--figma-color-bg-brand) 14%,var(--figma-color-bg));color:var(--figma-color-text-brand);font-weight:600}
+  .db{width:28px;height:24px;flex:none;border-radius:4px;border:1px solid var(--figma-color-border);background:var(--figma-color-bg-secondary);cursor:pointer;font-size:13px;color:var(--figma-color-text);display:flex;align-items:center;justify-content:center;transition:border-color .1s,background .1s}
+  .db:hover{border-color:var(--figma-color-bg-brand);background:var(--figma-color-bg-hover)}
+  .db.on{border-color:var(--figma-color-bg-brand);background:color-mix(in srgb,var(--figma-color-bg-brand) 14%,var(--figma-color-bg));color:var(--figma-color-text-brand)}
+
+  /* On/off toggle switch */
+  .tgl{width:30px;height:16px;border-radius:8px;border:none;background:var(--figma-color-border);position:relative;cursor:pointer;padding:0;flex:none;transition:background .15s}
+  .tgl.on{background:var(--figma-color-bg-brand)}
+  .tgl-dot{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}
+  .tgl.on .tgl-dot{left:16px}
+  .sec-hd.tgl-hd{display:flex;align-items:center;justify-content:space-between}
+  .fade-sld.off{opacity:.4;pointer-events:none}
+  /* Collapsed (simple) view — only preview + presets + animate button show. */
+  #root.collapsed .adv{display:none}
+  .cust-bar{padding:2px 10px 8px}
+  .cust-btn{width:100%;height:32px;border-radius:6px;border:1px solid var(--figma-color-border);background:var(--figma-color-bg-secondary);color:var(--figma-color-text);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:border-color .1s,background .1s}
+  .cust-btn:hover{border-color:var(--figma-color-bg-brand);background:var(--figma-color-bg-hover)}
+
+  /* Easing dropdown */
+  .csel{position:relative;width:100%}
+  .csel-btn{width:100%;height:26px;border:1px solid var(--figma-color-border);border-radius:4px;background:var(--figma-color-bg-secondary);color:var(--figma-color-text);font-family:inherit;font-size:11px;padding:0 24px 0 8px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+  .csel-btn::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--figma-color-text-secondary);pointer-events:none}
+  .csel-btn:hover{border-color:var(--figma-color-bg-brand)}
+  .csel-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);background:#2c2c2e;border:1px solid var(--figma-color-border);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,.55);z-index:999;list-style:none;margin:0;padding:3px 0}
+  .csel-menu.open{display:block}
+  .csel-opt{padding:5px 10px;font-size:11px;color:var(--figma-color-text);cursor:pointer;user-select:none}
+  .csel-opt:hover{background:var(--figma-color-bg-hover)}
+  .csel-opt.sel{color:var(--figma-color-text-brand);font-weight:600}
+  .csel-sep{height:1px;background:var(--figma-color-border);margin:3px 0}
+  .csel-hd{padding:5px 10px 2px;font-size:9px;font-weight:600;color:var(--figma-color-text-secondary);text-transform:uppercase;letter-spacing:.04em;pointer-events:none}
+
+  .th{font-size:10px;color:var(--figma-color-text-secondary);padding:2px 10px 4px}
+
+  /* Bezier editor */
+  .bz-wrap{display:none;padding:4px 10px 6px}
+  .bz-wrap.show{display:block}
+  .bz-canvas-wrap{position:relative;width:100%;max-width:190px;margin:0 auto;background:#141414;border-radius:5px;overflow:hidden;border:1px solid #2e2e2e;cursor:crosshair}
+  .bz-canvas-wrap canvas{display:block;width:100%;height:auto}
+  .bz-vals{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
+  .bz-field{display:flex;flex-direction:column;gap:1px}
+  .bz-lbl{font-size:9px;color:var(--figma-color-text-secondary);padding-left:2px;font-weight:500}
+  .bz-in{width:100%;height:22px;border:1px solid var(--figma-color-border);border-radius:3px;background:var(--figma-color-bg-secondary);color:var(--figma-color-text);font-family:inherit;font-size:10px;padding:0 5px;outline:none;-moz-appearance:textfield}
+  .bz-in::-webkit-inner-spin-button,.bz-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .bz-in:focus{border-color:var(--figma-color-bg-brand)}
+  .bz-paste{width:100%;margin-top:4px;height:22px;border:1px solid var(--figma-color-border);border-radius:3px;background:var(--figma-color-bg-secondary);color:var(--figma-color-text-secondary);font-family:'Menlo','Monaco',monospace;font-size:9px;padding:0 5px;outline:none}
+  .bz-paste:focus{border-color:var(--figma-color-bg-brand);color:var(--figma-color-text)}
+
+  /* Footer */
+  .footer{position:sticky;bottom:0;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--figma-color-border);background:var(--figma-color-bg);gap:8px}
+  .footer-st{font-size:10px;color:var(--figma-color-text-secondary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btn-primary{height:28px;padding:0 14px;border-radius:6px;background:var(--figma-color-bg-brand);border:none;color:var(--figma-color-text-onbrand,#fff);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer}
+  .btn-primary:hover:not(:disabled){background:var(--figma-color-bg-brand-hover,var(--figma-color-bg-brand))}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{height:28px;padding:0 10px;border-radius:6px;background:transparent;border:1px solid var(--figma-color-border);color:var(--figma-color-text);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer}
+  .btn-ghost:hover:not(:disabled){background:var(--figma-color-bg-secondary)}
+  .btn-ghost:disabled{opacity:.4;cursor:not-allowed}
+  .sec-hd-flex{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .accent-inp{-webkit-appearance:none;appearance:none;width:16px;height:16px;padding:0;border:1px solid var(--figma-color-border);border-radius:50%;background:none;cursor:pointer;overflow:hidden;flex:0 0 auto}
+  .accent-inp::-webkit-color-swatch-wrapper{padding:0}
+  .accent-inp::-webkit-color-swatch{border:none;border-radius:50%}
+</style>
+</head>
+<body>
+<div id="root" class="collapsed">
+  <!-- Preview -->
+  <div class="pv-box" id="pvBox">
+    <div class="pv-inner" id="pvInner"><span class="pv-empty">Select a text layer to preview</span></div>
+    <span class="pv-hint">▶ replay</span>
+  </div>
+
+  <!-- Presets -->
+  <div class="sec">
+    <div class="sec-hd sec-hd-flex"><span>Presets</span><input type="color" id="accentColor" class="accent-inp" title="Pick UI accent color" value="#0d99ff"></div>
+    <div class="pg" id="builtinGrid">
+      <button class="pb" data-p="fade-up">Fade up</button>
+      <button class="pb" data-p="scale-in">Scale in</button>
+      <button class="pb" data-p="blur-in">Blur in</button>
+      <button class="pb" data-p="slide-in">Slide in</button>
+      <button class="pb" data-p="typewriter">Typewriter</button>
+      <button class="pb" data-p="spring-pop">Spring pop</button>
+    </div>
+    <div class="pg" id="customGrid" style="display:none;padding-top:0"></div>
+    <div class="save-row adv" id="saveRow"><button class="slnk" id="saveToggle">+ Save as preset</button></div>
+    <div class="save-row adv" id="saveForm" style="display:none">
+      <input class="sinp" id="saveName" placeholder="Preset name…" maxlength="24">
+      <button class="sok" id="saveOk">Save</button>
+      <button class="scx" id="saveCancel">✕</button>
+    </div>
+  </div>
+
+  <!-- Customize toggle, right below the presets -->
+  <div class="cust-bar"><button class="cust-btn" id="viewToggle" type="button">Customize ▾</button></div>
+
+  <!-- Animation -->
+  <div class="sec adv">
+    <div class="sec-hd tgl-hd"><span>Animation in</span><button class="tgl on" id="inToggle" type="button" title="Animate the text in"><span class="tgl-dot"></span></button></div>
+    <input type="hidden" id="animateIn" value="true">
+    <div class="row"><span class="lbl">Animate by</span>
+      <div class="ctrl tbr">
+        <button class="tb on" id="sm-character">Character</button>
+        <button class="tb" id="sm-word">Word</button>
+        <button class="tb" id="sm-line">Line</button>
+      </div>
+    </div>
+    <input type="hidden" id="splitMode" value="character">
+    <div class="row"><span class="lbl">Timing</span>
+      <div class="ctrl tbr">
+        <button class="tb on" id="tm-numeric" title="Time the in/out phases with the panel's Delay/Duration/Hold fields">Numeric</button>
+        <button class="tb" id="tm-markers" title="Time the in/out phases with IN/OUT markers on the layer">Markers</button>
+      </div>
+    </div>
+    <input type="hidden" id="timingMode" value="numeric">
+    <div class="row" id="markersHint" style="display:none"><span class="lbl"></span><div class="ctrl" style="opacity:.6;font-size:10px;line-height:1.35">Runs from <b>IN</b>/<b>OUT</b> markers on the layer — move/resize them in the timeline to set when &amp; how long. Delay &amp; Hold are ignored; Duration/Stagger set the shape.</div></div>
+    <div class="row in-ctrl"><span class="lbl">Order</span>
+      <div class="ctrl tbr">
+        <button class="tb on" id="sd-forward">Forward</button>
+        <button class="tb" id="sd-backward">Backward</button>
+        <button class="tb" id="sd-random">Random</button>
+      </div>
+    </div>
+    <input type="hidden" id="staggerDir" value="forward">
+    <div class="row in-ctrl"><span class="lbl">Duration</span><div class="ctrl sld"><input type="range" id="duration" min="0.05" max="3" step="0.05" value="0.5"><input class="sld-num" type="number" data-for="duration" min="0.05" max="3" step="0.05"><span class="sld-unit">s</span></div></div>
+    <div class="row in-ctrl"><span class="lbl">Stagger</span><div class="ctrl sld"><input type="range" id="stagger" min="0" max="1" step="0.01" value="0.08"><input class="sld-num" type="number" data-for="stagger" min="0" max="1" step="0.01"><span class="sld-unit">s</span></div></div>
+    <div class="row in-ctrl"><span class="lbl">Start delay</span><div class="ctrl sld"><input type="range" id="delayStart" min="0" max="3" step="0.05" value="0"><input class="sld-num" type="number" data-for="delayStart" min="0" max="3" step="0.05"><span class="sld-unit">s</span></div></div>
+    <div class="th in-ctrl" id="thHint"></div>
+    <div class="row in-ctrl"><span class="lbl">Easing</span>
+      <div class="ctrl">
+        <div class="csel" id="easingWrap">
+          <button class="csel-btn" id="easingBtn" type="button">Ease out</button>
+          <ul class="csel-menu" id="easingMenu">
+            <li class="csel-opt" data-v="LINEAR">Linear</li>
+            <li class="csel-opt" data-v="EASE_IN">Ease in</li>
+            <li class="csel-opt sel" data-v="EASE_OUT">Ease out</li>
+            <li class="csel-opt" data-v="EASE_IN_AND_OUT">Ease in &amp; out</li>
+            <li class="csel-opt" data-v="DECELERATE">Decelerate</li>
+            <li class="csel-opt" data-v="ACCELERATE">Accelerate</li>
+            <li class="csel-opt" data-v="SMOOTH">Smooth</li>
+            <li class="csel-sep"></li>
+            <li class="csel-opt" data-v="EASE_OUT_BACK">Overshoot</li>
+            <li class="csel-opt" data-v="BOUNCY">Bouncy</li>
+            <li class="csel-opt" data-v="GENTLE">Gentle</li>
+            <li class="csel-opt" data-v="CUSTOM_SPRING">Spring</li>
+            <li class="csel-sep"></li>
+            <li class="csel-opt" data-v="CUSTOM_CUBIC_BEZIER">Custom bezier…</li>
+            <li class="csel-sep" id="evSep" style="display:none"></li>
+          </ul>
+        </div>
+        <input type="hidden" id="easing" value="EASE_OUT">
+        <input type="hidden" id="easingVarId" value="">
+      </div>
+    </div>
+    <div class="bz-wrap in-ctrl" id="bzWrap">
+      <div class="bz-canvas-wrap"><canvas id="bzCanvas" width="260" height="160"></canvas></div>
+      <div class="bz-vals">
+        <div class="bz-field"><span class="bz-lbl">P1 X</span><input class="bz-in" id="bezierX1" type="number" min="0" max="1" step="0.01" value="0.25"></div>
+        <div class="bz-field"><span class="bz-lbl">P1 Y</span><input class="bz-in" id="bezierY1" type="number" min="-2" max="2" step="0.01" value="0.1"></div>
+        <div class="bz-field"><span class="bz-lbl">P2 X</span><input class="bz-in" id="bezierX2" type="number" min="0" max="1" step="0.01" value="0.25"></div>
+        <div class="bz-field"><span class="bz-lbl">P2 Y</span><input class="bz-in" id="bezierY2" type="number" min="-2" max="2" step="0.01" value="1"></div>
+      </div>
+      <input class="bz-paste" id="bzPaste" placeholder="cubic-bezier(x1, y1, x2, y2)" spellcheck="false">
+    </div>
+  </div>
+
+  <!-- Position -->
+  <div class="sec in-ctrl adv">
+    <div class="sec-hd">Position</div>
+    <div class="row"><span class="lbl">Direction</span><div class="ctrl tbr">
+      <button class="db" id="db-up" title="Move up">↑</button>
+      <button class="db" id="db-dn" title="Move down">↓</button>
+      <button class="db" id="db-r" title="Move right">→</button>
+      <button class="db" id="db-l" title="Move left">←</button>
+      <button class="db" id="db-no" title="None">✕</button>
+    </div></div>
+    <div class="row"><span class="lbl">Y offset</span><div class="ctrl sld"><input type="range" id="translateY" min="-500" max="500" step="1" value="40"><input class="sld-num" type="number" data-for="translateY" min="-500" max="500" step="1"><span class="sld-unit">px</span></div></div>
+    <div class="row"><span class="lbl">X offset</span><div class="ctrl sld"><input type="range" id="translateX" min="-500" max="500" step="1" value="0"><input class="sld-num" type="number" data-for="translateX" min="-500" max="500" step="1"><span class="sld-unit">px</span></div></div>
+  </div>
+
+  <!-- Transform -->
+  <div class="sec in-ctrl adv">
+    <div class="sec-hd">Transform</div>
+    <div class="row"><span class="lbl">Scale from</span><div class="ctrl sld"><input type="range" id="scaleStart" min="0" max="300" step="1" value="100"><input class="sld-num" type="number" data-for="scaleStart" min="0" max="300" step="1"><span class="sld-unit">%</span></div></div>
+    <div class="row"><span class="lbl">Opacity from</span><div class="ctrl sld"><input type="range" id="opacityStart" min="0" max="100" step="1" value="0"><input class="sld-num" type="number" data-for="opacityStart" min="0" max="100" step="1"><span class="sld-unit">%</span></div></div>
+    <input type="hidden" id="fadeInSeparate" value="false">
+    <div class="row"><span class="lbl">Fade dur</span><button class="tgl" id="fadeInToggle" type="button" title="Give opacity its own fade duration"><span class="tgl-dot"></span></button><div class="ctrl sld fade-sld off" id="fadeInSld"><input type="range" id="fadeInDuration" min="0" max="3" step="0.05" value="0.3"><input class="sld-num" type="number" data-for="fadeInDuration" min="0" max="3" step="0.05"><span class="sld-unit">s</span></div></div>
+    <div class="row"><span class="lbl">Blur from</span><div class="ctrl sld"><input type="range" id="blurStart" min="0" max="100" step="1" value="0"><input class="sld-num" type="number" data-for="blurStart" min="0" max="100" step="1"><span class="sld-unit">px</span></div></div>
+    <div class="row"><span class="lbl">Rotate from</span><div class="ctrl sld"><input type="range" id="rotateZ" min="-180" max="180" step="1" value="0"><input class="sld-num" type="number" data-for="rotateZ" min="-180" max="180" step="1"><span class="sld-unit">°</span></div></div>
+    <input type="hidden" id="colorInEnable" value="false">
+    <div class="row"><span class="lbl">Color from</span><button class="tgl" id="colorInToggle" type="button" title="Animate fill color in (char starts this color, settles to its own fill)"><span class="tgl-dot"></span></button><input type="color" class="accent-inp" id="colorInVal" value="#12a150"></div>
+  </div>
+
+  <!-- Animate out -->
+  <div class="sec adv">
+    <div class="sec-hd tgl-hd"><span>Animate out</span><button class="tgl" id="outToggle" type="button"><span class="tgl-dot"></span></button></div>
+    <input type="hidden" id="animateOut" value="false">
+    <div id="outControls" style="display:none">
+      <div class="row"><span class="lbl">Hold</span><div class="ctrl sld"><input type="range" id="holdTime" min="0" max="10" step="0.1" value="1"><input class="sld-num" type="number" data-for="holdTime" min="0" max="10" step="0.1"><span class="sld-unit">s</span></div></div>
+      <div class="row"><span class="lbl">Duration</span><div class="ctrl sld"><input type="range" id="outDuration" min="0.05" max="3" step="0.05" value="0.4"><input class="sld-num" type="number" data-for="outDuration" min="0.05" max="3" step="0.05"><span class="sld-unit">s</span></div></div>
+      <div class="row"><span class="lbl">Stagger</span><div class="ctrl sld"><input type="range" id="outStagger" min="0" max="1" step="0.01" value="0.04"><input class="sld-num" type="number" data-for="outStagger" min="0" max="1" step="0.01"><span class="sld-unit">s</span></div></div>
+      <div class="row"><span class="lbl">Order</span>
+        <div class="ctrl tbr">
+          <button class="tb on" id="od-forward">Forward</button>
+          <button class="tb" id="od-backward">Backward</button>
+          <button class="tb" id="od-random">Random</button>
+        </div>
+      </div>
+      <input type="hidden" id="outStaggerDir" value="forward">
+      <div class="row"><span class="lbl">Easing</span>
+        <div class="ctrl">
+          <div class="csel" id="outEasingWrap">
+            <button class="csel-btn" id="outEasingBtn" type="button">Ease in</button>
+            <ul class="csel-menu" id="outEasingMenu">
+              <li class="csel-opt" data-v="LINEAR">Linear</li>
+              <li class="csel-opt sel" data-v="EASE_IN">Ease in</li>
+              <li class="csel-opt" data-v="EASE_OUT">Ease out</li>
+              <li class="csel-opt" data-v="EASE_IN_AND_OUT">Ease in &amp; out</li>
+              <li class="csel-opt" data-v="DECELERATE">Decelerate</li>
+              <li class="csel-opt" data-v="ACCELERATE">Accelerate</li>
+              <li class="csel-opt" data-v="SMOOTH">Smooth</li>
+              <li class="csel-sep"></li>
+              <li class="csel-opt" data-v="EASE_OUT_BACK">Overshoot</li>
+              <li class="csel-opt" data-v="BOUNCY">Bouncy</li>
+              <li class="csel-opt" data-v="GENTLE">Gentle</li>
+              <li class="csel-opt" data-v="CUSTOM_SPRING">Spring</li>
+              <li class="csel-sep"></li>
+              <li class="csel-opt" data-v="CUSTOM_CUBIC_BEZIER">Custom bezier…</li>
+              <li class="csel-sep" id="outEvSep" style="display:none"></li>
+            </ul>
+          </div>
+          <input type="hidden" id="outEasing" value="EASE_IN">
+          <input type="hidden" id="outEasingVarId" value="">
+        </div>
+      </div>
+      <div class="bz-wrap" id="outBzWrap">
+        <div class="bz-canvas-wrap"><canvas id="outBzCanvas" width="260" height="160"></canvas></div>
+        <div class="bz-vals">
+          <div class="bz-field"><span class="bz-lbl">P1 X</span><input class="bz-in" id="outBezierX1" type="number" min="0" max="1" step="0.01" value="0.42"></div>
+          <div class="bz-field"><span class="bz-lbl">P1 Y</span><input class="bz-in" id="outBezierY1" type="number" min="-2" max="2" step="0.01" value="0"></div>
+          <div class="bz-field"><span class="bz-lbl">P2 X</span><input class="bz-in" id="outBezierX2" type="number" min="0" max="1" step="0.01" value="1"></div>
+          <div class="bz-field"><span class="bz-lbl">P2 Y</span><input class="bz-in" id="outBezierY2" type="number" min="-2" max="2" step="0.01" value="1"></div>
+        </div>
+        <input class="bz-paste" id="outBzPaste" placeholder="cubic-bezier(x1, y1, x2, y2)" spellcheck="false">
+      </div>
+      <div class="row"><span class="lbl">Direction</span><div class="ctrl tbr">
+        <button class="db" id="odb-up" title="Exit up">↑</button>
+        <button class="db" id="odb-dn" title="Exit down">↓</button>
+        <button class="db" id="odb-l" title="Exit left">←</button>
+        <button class="db" id="odb-r" title="Exit right">→</button>
+        <button class="db" id="odb-no" title="None">✕</button>
+      </div></div>
+      <div class="row"><span class="lbl">Y offset</span><div class="ctrl sld"><input type="range" id="outTranslateY" min="-500" max="500" step="1" value="40"><input class="sld-num" type="number" data-for="outTranslateY" min="-500" max="500" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl">X offset</span><div class="ctrl sld"><input type="range" id="outTranslateX" min="-500" max="500" step="1" value="0"><input class="sld-num" type="number" data-for="outTranslateX" min="-500" max="500" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl">Scale to</span><div class="ctrl sld"><input type="range" id="outScale" min="0" max="300" step="1" value="100"><input class="sld-num" type="number" data-for="outScale" min="0" max="300" step="1"><span class="sld-unit">%</span></div></div>
+      <div class="row"><span class="lbl">Opacity to</span><div class="ctrl sld"><input type="range" id="outOpacity" min="0" max="100" step="1" value="0"><input class="sld-num" type="number" data-for="outOpacity" min="0" max="100" step="1"><span class="sld-unit">%</span></div></div>
+      <input type="hidden" id="fadeOutSeparate" value="false">
+      <div class="row"><span class="lbl">Fade dur</span><button class="tgl" id="fadeOutToggle" type="button" title="Give opacity its own fade duration"><span class="tgl-dot"></span></button><div class="ctrl sld fade-sld off" id="fadeOutSld"><input type="range" id="fadeOutDuration" min="0" max="3" step="0.05" value="0.3"><input class="sld-num" type="number" data-for="fadeOutDuration" min="0" max="3" step="0.05"><span class="sld-unit">s</span></div></div>
+      <div class="row"><span class="lbl">Blur to</span><div class="ctrl sld"><input type="range" id="outBlur" min="0" max="100" step="1" value="0"><input class="sld-num" type="number" data-for="outBlur" min="0" max="100" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl">Rotate to</span><div class="ctrl sld"><input type="range" id="outRotate" min="-180" max="180" step="1" value="0"><input class="sld-num" type="number" data-for="outRotate" min="-180" max="180" step="1"><span class="sld-unit">°</span></div></div>
+      <input type="hidden" id="colorOutEnable" value="false">
+      <div class="row"><span class="lbl">Color to</span><button class="tgl" id="colorOutToggle" type="button" title="Animate fill color out (char shifts to this color as it leaves)"><span class="tgl-dot"></span></button><input type="color" class="accent-inp" id="colorOutVal" value="#12a150"></div>
+    </div>
+  </div>
+
+  <!-- Mask reveal -->
+  <div class="sec adv">
+    <div class="sec-hd tgl-hd"><span>Mask reveal</span><button class="tgl" id="maskToggle" type="button" title="Clip each line to a box so units are hidden until they animate into place (pairs with a Y/X offset)"><span class="tgl-dot"></span></button></div>
+    <input type="hidden" id="maskReveal" value="false">
+    <div id="maskControls" style="display:none">
+      <div class="row"><span class="lbl">Box padding</span><div class="ctrl sld"><input type="range" id="maskPadding" min="-40" max="80" step="1" value="0"><input class="sld-num" type="number" data-for="maskPadding" min="-40" max="80" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl"></span><div class="ctrl" style="opacity:.6;font-size:10px;line-height:1.35">Box hugs each line (ascenders/descenders included). Multi-line text auto-splits into per-line layers so each line clips independently.</div></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-st" id="statusEl">Select a text layer</span>
+    <button class="btn-ghost" id="btnMogrt" title="Export the animated comp as a Premiere .mogrt (editable text)">.mogrt</button>
+    <button class="btn-primary" id="btnAnimate" disabled>Animate text</button>
+  </div>
+</div>
+
+<script>
+// ── Helpers ─────────────────────────────────────────────────────────────
+function $v(id){return document.getElementById(id)}
+function sv(id,v){var el=$v(id);if(!el)return;var s=String(v);el.value=s;el.setAttribute('value',s)}
+function nv(id){var el=$v(id);if(!el)return 0;var n=Number(el.value);return isFinite(n)?n:0}
+function gv(id){var el=$v(id);return el?String(el.value||''):''}
+function nBz(id){var v=parseFloat(gv(id));return isNaN(v)?0:v}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+var SLIDERS=['duration','stagger','delayStart','translateY','translateX','scaleStart','opacityStart','blurStart','rotateZ','fadeInDuration','holdTime','outDuration','outStagger','outTranslateY','outTranslateX','outScale','outOpacity','outBlur','outRotate','fadeOutDuration','maskPadding']
+
+// ── Height reporting ────────────────────────────────────────────────────
+var _lH=0,_rAF=0
+function _rH(){/* CEP panel scrolls; no iframe resize needed */}
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(function(){if(_rAF)cancelAnimationFrame(_rAF);_rAF=requestAnimationFrame(_rH)}).observe($v('root'))
+
+// ── Native sliders ──────────────────────────────────────────────────────
+function paintSlider(el){var mn=+el.min,mx=+el.max,v=+el.value,p=mx>mn?((v-mn)/(mx-mn))*100:0;el.style.background='linear-gradient(90deg,var(--figma-color-bg-brand) '+p+'%,var(--figma-color-bg-secondary) '+p+'%)'}
+function numFor(id){return document.querySelector('.sld-num[data-for="'+id+'"]')}
+function setSlider(id,v){var el=$v(id);if(!el)return;el.value=v;el.setAttribute('value',String(v));var n=numFor(id);if(n)n.value=el.value;paintSlider(el)}
+function onSliderChange(id){if(id==='duration'||id==='stagger'||id==='delayStart')updTH();if(id==='translateX'||id==='translateY')syncDP();if(id==='outTranslateX'||id==='outTranslateY')syncODP();clearPA();schedPV()}
+function setupSliders(){SLIDERS.forEach(function(id){var el=$v(id);if(!el)return;var num=numFor(id);if(num)num.value=el.value;paintSlider(el)
+  el.addEventListener('input',function(){if(num)num.value=el.value;paintSlider(el);onSliderChange(id)})
+  if(num)num.addEventListener('change',function(){var v=+num.value;if(isNaN(v))v=+el.value;v=Math.max(+el.min,Math.min(+el.max,v));el.value=v;num.value=v;paintSlider(el);onSliderChange(id)})
+})}
+
+// ── Preview ─────────────────────────────────────────────────────────────
+var pvTxt='',pvRAF=0,pvLoop=null
+var EC={LINEAR:'linear',EASE_IN:'ease-in',EASE_OUT:'ease-out',EASE_IN_AND_OUT:'ease-in-out',EASE_OUT_BACK:'cubic-bezier(0.34,1.56,0.64,1)',BOUNCY:'cubic-bezier(0.34,1.4,0.5,1)',GENTLE:'cubic-bezier(0.25,0.46,0.45,0.94)',CUSTOM_SPRING:'cubic-bezier(0.175,0.885,0.32,1.275)',DECELERATE:'cubic-bezier(0,0,0,1)',ACCELERATE:'cubic-bezier(0,0,1,0)',SMOOTH:'cubic-bezier(0.5,0,0.05,1)'}
+function schedPV(){if(pvRAF)cancelAnimationFrame(pvRAF);pvRAF=requestAnimationFrame(doPV)}
+function srPV(s,i){var x=Math.sin(s*9301+i*49297+233)*10000;return x-Math.floor(x)}
+function shPV(a){var r=a.slice();for(var j=r.length-1;j>0;j--){var k=Math.floor(srPV(42,j)*(j+1)),t=r[j];r[j]=r[k];r[k]=t}return r}
+function pvMove(tx,ty,sc,rot,blur){
+  var ft=[];if(tx)ft.push('translateX('+tx+'px)');if(ty)ft.push('translateY('+ty+'px)');if(sc!==1)ft.push('scale('+sc+')');if(rot)ft.push('rotate('+rot+'deg)')
+  return (ft.length?'transform:'+ft.join(' '):'transform:none')+';'+(blur?'filter:blur('+blur+'px)':'filter:none')
+}
+// Preview animates opacity and transform/filter as SEPARATE animations per unit
+// so a separate fade duration is reflected (opacity can pop in while it moves).
+function doPV(){
+  var p=curP(),ct=$v('pvInner');if(!ct)return
+  if(!pvTxt){ct.innerHTML='<span class="pv-empty">Select a text layer to preview</span>';return}
+  var sm=p.splitMode,dur=Math.max(0.05,p.duration),stag=p.stagger,del=p.delayStart
+  var ec=p.easing==='CUSTOM_CUBIC_BEZIER'?'cubic-bezier('+p.bezierX1+','+p.bezierY1+','+p.bezierX2+','+p.bezierY2+')':p.easing==='VARIABLE'?(varCss(p.easingVarId)||'ease-out'):(EC[p.easing]||'ease-out')
+  var doIn=p.animateIn!==false
+  var fadeIn=p.fadeInSeparate?Math.max(0,p.fadeInDuration):dur
+  var nMove='transform:none;filter:none'
+  var opFrom=doIn?p.opacityStart/100:1
+  var fromMove=doIn?pvMove(p.translateX*.4,p.translateY*.4,p.scaleStart/100,p.rotateZ,Math.min(p.blurStart,20)*.5):nMove
+  var toks=[]
+  if(sm==='line')toks=pvTxt.split(/[\n\u2028\u2029]/).map(function(t){return{t:t,l:true,sp:false}})
+  else if(sm==='word'){var tmp=pvTxt.match(/\S+|\s+/g)||[];toks=tmp.map(function(t){return{t:t,l:false,sp:/^\s+$/.test(t)}})}
+  else{toks=Array.from(pvTxt).map(function(c){return{t:c,l:false,sp:/^\s+$/.test(c)}})}
+  var words=toks.filter(function(t){return(!t.sp&&!t.l)||(t.l&&t.t.trim())})
+  var n=words.length
+  function orderPV(dir){var a=words.map(function(_,i){return i});if(dir==='backward')return words.map(function(_,i){return n-1-i});if(dir==='random')return shPV(a);return a}
+  var ord=orderPV(p.staggerDir),out=p.animateOut
+  var base=_lH+n+Math.round((dur+fadeIn)*1000)+(out?2:0)
+  var kfCss='',anims=[],tot
+  if(out){
+    var outEc=p.outEasing==='CUSTOM_CUBIC_BEZIER'?'cubic-bezier('+p.outBezierX1+','+p.outBezierY1+','+p.outBezierX2+','+p.outBezierY2+')':p.outEasing==='VARIABLE'?(outVarCss(p.outEasingVarId)||'ease-in'):(EC[p.outEasing]||'ease-in')
+    var oDur=Math.max(0.05,p.outDuration),oStag=p.outStagger,hold=p.holdTime
+    var fadeOut=p.fadeOutSeparate?Math.max(0,p.fadeOutDuration):oDur,opTo=p.outOpacity/100
+    var outMove=pvMove(p.outTranslateX*.4,p.outTranslateY*.4,p.outScale/100,p.outRotate,Math.min(p.outBlur,20)*.5)
+    var oOrd=orderPV(p.outStaggerDir)
+    var inEnd=doIn?(del+Math.max(dur,fadeIn)+stag*Math.max(0,n-1)):0,outStart=inEnd+hold
+    tot=outStart+oDur+oStag*Math.max(0,n-1)
+    var P=function(t){return (tot>0?(t/tot*100):0).toFixed(3)}
+    for(var u=0;u<n;u++){
+      var is=del+(ord[u]||0)*stag,os=outStart+(oOrd[u]||0)*oStag,ofs=Math.max(os,os+oDur-fadeOut),mk='m'+base+'_'+u,ok='o'+base+'_'+u
+      var mIn=doIn?(P(is)+'%{'+fromMove+';animation-timing-function:'+ec+'}'+P(is+dur)+'%{'+nMove+';animation-timing-function:linear}'):''
+      var oIn=doIn?(P(is)+'%{opacity:'+opFrom+';animation-timing-function:'+ec+'}'+P(is+fadeIn)+'%{opacity:1;animation-timing-function:linear}'):''
+      kfCss+='@keyframes '+mk+'{0%{'+fromMove+';animation-timing-function:linear}'+mIn+P(os)+'%{'+nMove+';animation-timing-function:'+outEc+'}'+P(os+oDur)+'%{'+outMove+';animation-timing-function:linear}100%{'+outMove+'}}'
+      kfCss+='@keyframes '+ok+'{0%{opacity:'+opFrom+';animation-timing-function:linear}'+oIn+P(ofs)+'%{opacity:1;animation-timing-function:'+outEc+'}'+P(os+oDur)+'%{opacity:'+opTo+';animation-timing-function:linear}100%{opacity:'+opTo+'}}'
+      anims[u]='animation:'+mk+' '+tot.toFixed(3)+'s linear 0s both,'+ok+' '+tot.toFixed(3)+'s linear 0s both'
+    }
+  }else{
+    var mk0='m'+base,ok0='o'+base
+    kfCss='@keyframes '+mk0+'{from{'+fromMove+'}to{'+nMove+'}}@keyframes '+ok0+'{from{opacity:'+opFrom+'}to{opacity:1}}'
+    tot=del+Math.max(dur,fadeIn)+stag*Math.max(0,n-1)
+    for(var u2=0;u2<n;u2++){var d=(del+(ord[u2]||0)*stag).toFixed(3);anims[u2]='animation:'+mk0+' '+dur+'s '+ec+' '+d+'s both,'+ok0+' '+fadeIn+'s '+ec+' '+d+'s both'}
+  }
+  var sEl=$v('pvSty');if(!sEl){sEl=document.createElement('style');sEl.id='pvSty';document.head.appendChild(sEl)}
+  sEl.textContent=kfCss
+  var h='',wi=0
+  for(var i=0;i<toks.length;i++){
+    var tk=toks[i]
+    if(tk.l){h+='<span class="lb"><span style="'+(anims[wi]||'')+'">'+esc(tk.t||' ')+'</span></span>';wi++;continue}
+    if(tk.sp){h+='<span style="display:inline-block;width:.3em"> </span>';continue}
+    h+='<span style="'+(anims[wi]||'')+'">'+esc(tk.t)+'</span>';wi++
+  }
+  ct.innerHTML=h
+  if(pvLoop)clearTimeout(pvLoop)
+  pvLoop=setTimeout(function(){if(pvTxt)schedPV()},tot*1000+1400)
+}
+$v('pvBox').addEventListener('click',schedPV)
+
+// ── Easing dropdown ─────────────────────────────────────────────────────
+var EL={LINEAR:'Linear',EASE_IN:'Ease in',EASE_OUT:'Ease out',EASE_IN_AND_OUT:'Ease in & out',DECELERATE:'Decelerate',ACCELERATE:'Accelerate',SMOOTH:'Smooth',EASE_OUT_BACK:'Overshoot',BOUNCY:'Bouncy',GENTLE:'Gentle',CUSTOM_SPRING:'Spring',CUSTOM_CUBIC_BEZIER:'Custom bezier…'}
+var eOpen=false,easingVars=[]
+// Reflect the hidden easing/easingVarId inputs onto the dropdown UI.
+function applyEasingState(){
+  var val=gv('easing'),vid=gv('easingVarId'),btn=$v('easingBtn'),menu=$v('easingMenu'),bw=$v('bzWrap')
+  if(val==='VARIABLE'){
+    var v=easingVars.filter(function(x){return x.id===vid})[0]
+    if(btn)btn.textContent=v?v.name:'Easing variable'
+    if(menu)menu.querySelectorAll('.csel-opt').forEach(function(o){o.classList.toggle('sel',o.getAttribute('data-var')===vid)})
+    if(bw)bw.classList.remove('show')
+  }else{
+    if(btn)btn.textContent=EL[val]||val
+    if(menu)menu.querySelectorAll('.csel-opt').forEach(function(o){o.classList.toggle('sel',o.getAttribute('data-v')===val)})
+    if(bw)bw.classList.toggle('show',val==='CUSTOM_CUBIC_BEZIER')
+    if(val==='CUSTOM_CUBIC_BEZIER'&&typeof bezIn!=='undefined')bezIn.refresh()
+  }
+}
+function setEasing(val){sv('easing',val);sv('easingVarId','');applyEasingState();schedPV()}
+function setEasingVar(id){sv('easing','VARIABLE');sv('easingVarId',id);applyEasingState();schedPV()}
+function varCss(id){var v=easingVars.filter(function(x){return x.id===id})[0];return v&&v.css}
+function renderVarsInto(menuId,sepId,afterFn){
+  var menu=$v(menuId),sep=$v(sepId);if(!menu)return
+  menu.querySelectorAll('.ev-item').forEach(function(n){n.remove()})
+  if(!easingVars.length){if(sep)sep.style.display='none';if(afterFn)afterFn();return}
+  if(sep)sep.style.display=''
+  var hd=document.createElement('li');hd.className='csel-hd ev-item';hd.textContent='File easing variables';menu.appendChild(hd)
+  easingVars.forEach(function(v){var li=document.createElement('li');li.className='csel-opt ev-item';li.setAttribute('data-var',v.id);li.textContent=v.name;menu.appendChild(li)})
+  if(afterFn)afterFn()
+}
+function renderEasingVars(){renderVarsInto('easingMenu','evSep',applyEasingState);renderVarsInto('outEasingMenu','outEvSep',applyOutEasingState)}
+function closeE(){eOpen=false;var m=$v('easingMenu');if(m)m.classList.remove('open')}
+function openE(){eOpen=true;var m=$v('easingMenu');if(m)m.classList.add('open')}
+var eBtn=$v('easingBtn');if(eBtn)eBtn.addEventListener('click',function(e){e.stopPropagation();eOpen?closeE():openE()})
+var eMenu=$v('easingMenu');if(eMenu)eMenu.addEventListener('click',function(e){var o=e.target.closest?e.target.closest('.csel-opt'):null;if(!o)return;e.stopPropagation();var vid=o.getAttribute('data-var');if(vid)setEasingVar(vid);else setEasing(o.getAttribute('data-v'));clearPA();closeE()})
+
+// Out-phase easing dropdown (presets + file variables; no bezier editor).
+var outEOpen=false
+function applyOutEasingState(){
+  var val=gv('outEasing'),vid=gv('outEasingVarId'),btn=$v('outEasingBtn'),menu=$v('outEasingMenu'),bw=$v('outBzWrap')
+  if(val==='VARIABLE'){var v=easingVars.filter(function(x){return x.id===vid})[0];if(btn)btn.textContent=v?v.name:'Easing variable';if(menu)menu.querySelectorAll('.csel-opt').forEach(function(o){o.classList.toggle('sel',o.getAttribute('data-var')===vid)});if(bw)bw.classList.remove('show')}
+  else{if(btn)btn.textContent=EL[val]||val;if(menu)menu.querySelectorAll('.csel-opt').forEach(function(o){o.classList.toggle('sel',o.getAttribute('data-v')===val)});if(bw)bw.classList.toggle('show',val==='CUSTOM_CUBIC_BEZIER');if(val==='CUSTOM_CUBIC_BEZIER'&&typeof bezOut!=='undefined')bezOut.refresh()}
+}
+function setOutEasing(val){sv('outEasing',val);sv('outEasingVarId','');applyOutEasingState();schedPV()}
+function setOutEasingVar(id){sv('outEasing','VARIABLE');sv('outEasingVarId',id);applyOutEasingState();schedPV()}
+function outVarCss(id){var v=easingVars.filter(function(x){return x.id===id})[0];return v&&v.css}
+function closeOutE(){outEOpen=false;var m=$v('outEasingMenu');if(m)m.classList.remove('open')}
+function openOutE(){outEOpen=true;var m=$v('outEasingMenu');if(m)m.classList.add('open')}
+var oeBtn=$v('outEasingBtn');if(oeBtn)oeBtn.addEventListener('click',function(e){e.stopPropagation();outEOpen?closeOutE():openOutE()})
+var oeMenu=$v('outEasingMenu');if(oeMenu)oeMenu.addEventListener('click',function(e){var o=e.target.closest?e.target.closest('.csel-opt'):null;if(!o)return;e.stopPropagation();var vid=o.getAttribute('data-var');if(vid)setOutEasingVar(vid);else setOutEasing(o.getAttribute('data-v'));clearPA();closeOutE()})
+document.addEventListener('click',function(e){var w=$v('easingWrap');if(w&&!w.contains(e.target))closeE();var ow=$v('outEasingWrap');if(ow&&!ow.contains(e.target))closeOutE()})
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeE();closeOutE()}})
+
+// ── Animate-by / Order toggles ──────────────────────────────────────────
+function syncSM(val){var v=val||gv('splitMode');['character','word','line'].forEach(function(d){var b=$v('sm-'+d);if(b)b.classList.toggle('on',d===v)});if(val)sv('splitMode',val)}
+;['character','word','line'].forEach(function(d){var b=$v('sm-'+d);if(b)b.addEventListener('click',function(){sv('splitMode',d);syncSM(d);clearPA();schedPV()})})
+// Timing mode: Numeric (Delay/Duration/Hold) vs Markers (IN/OUT layer markers).
+function syncTM(val){var v=val||gv('timingMode');['numeric','markers'].forEach(function(d){var b=$v('tm-'+d);if(b)b.classList.toggle('on',d===v)});if(val)sv('timingMode',val);var h=$v('markersHint');if(h)h.style.display=(v==='markers')?'flex':'none'}
+;['numeric','markers'].forEach(function(d){var b=$v('tm-'+d);if(b)b.addEventListener('click',function(){sv('timingMode',d);syncTM(d);clearPA();schedPV()})})
+function syncSD(val){var v=val||gv('staggerDir');['forward','backward','random'].forEach(function(d){var b=$v('sd-'+d);if(b)b.classList.toggle('on',d===v)});if(val)sv('staggerDir',val)}
+;['forward','backward','random'].forEach(function(d){var b=$v('sd-'+d);if(b)b.addEventListener('click',function(){sv('staggerDir',d);syncSD(d);clearPA();schedPV()})})
+
+// ── Direction pad ───────────────────────────────────────────────────────
+var DM={'db-up':{ty:60,tx:0},'db-dn':{ty:-60,tx:0},'db-r':{ty:0,tx:-60},'db-l':{ty:0,tx:60},'db-no':{ty:0,tx:0}}
+;['db-up','db-dn','db-r','db-l','db-no'].forEach(function(id){var b=$v(id);if(b)b.addEventListener('click',function(){var d=DM[id];setSlider('translateY',d.ty);setSlider('translateX',d.tx);syncDP();clearPA();schedPV()})})
+function syncDP(){var y=nv('translateY'),x=nv('translateX'),a=null
+  if(y>0&&x===0)a='db-up';else if(y<0&&x===0)a='db-dn';else if(x<0&&y===0)a='db-r';else if(x>0&&y===0)a='db-l';else if(x===0&&y===0)a='db-no'
+  ;['db-up','db-dn','db-r','db-l','db-no'].forEach(function(id){var b=$v(id);if(b)b.classList.toggle('on',id===a)})
+}
+
+// ── Animate-out: toggle, order, direction pad ───────────────────────────
+function syncAnimateOut(){var on=gv('animateOut')==='true';var t=$v('outToggle');if(t)t.classList.toggle('on',on);var c=$v('outControls');if(c)c.style.display=on?'block':'none'}
+// Mask reveal toggle + padding.
+function syncMask(){var on=gv('maskReveal')==='true';var t=$v('maskToggle');if(t)t.classList.toggle('on',on);var c=$v('maskControls');if(c)c.style.display=on?'block':'none'}
+var mTog=$v('maskToggle');if(mTog)mTog.addEventListener('click',function(){sv('maskReveal',gv('maskReveal')==='true'?'false':'true');syncMask();clearPA();schedPV()})
+var oTog=$v('outToggle');if(oTog)oTog.addEventListener('click',function(){sv('animateOut',gv('animateOut')==='true'?'false':'true');syncAnimateOut();clearPA();schedPV()})
+// Animate-in toggle hides the in-only controls (Animate by stays — split is shared).
+function syncAnimateIn(){var on=gv('animateIn')!=='false';var t=$v('inToggle');if(t)t.classList.toggle('on',on);document.querySelectorAll('.in-ctrl').forEach(function(el){el.style.display=on?'':'none'})}
+var iTog=$v('inToggle');if(iTog)iTog.addEventListener('click',function(){sv('animateIn',gv('animateIn')!=='false'?'false':'true');syncAnimateIn();clearPA();schedPV()})
+function syncOSD(val){var v=val||gv('outStaggerDir');['forward','backward','random'].forEach(function(d){var b=$v('od-'+d);if(b)b.classList.toggle('on',d===v)});if(val)sv('outStaggerDir',val)}
+;['forward','backward','random'].forEach(function(d){var b=$v('od-'+d);if(b)b.addEventListener('click',function(){sv('outStaggerDir',d);syncOSD(d);clearPA();schedPV()})})
+// Out direction arrows = exit motion direction (up=−Y, down=+Y, left=−X, right=+X).
+var ODM={'odb-up':{ty:-60,tx:0},'odb-dn':{ty:60,tx:0},'odb-l':{ty:0,tx:-60},'odb-r':{ty:0,tx:60},'odb-no':{ty:0,tx:0}}
+;['odb-up','odb-dn','odb-l','odb-r','odb-no'].forEach(function(id){var b=$v(id);if(b)b.addEventListener('click',function(){var d=ODM[id];setSlider('outTranslateY',d.ty);setSlider('outTranslateX',d.tx);syncODP();clearPA();schedPV()})})
+function syncODP(){var y=nv('outTranslateY'),x=nv('outTranslateX'),a=null
+  if(y<0&&x===0)a='odb-up';else if(y>0&&x===0)a='odb-dn';else if(x<0&&y===0)a='odb-l';else if(x>0&&y===0)a='odb-r';else if(x===0&&y===0)a='odb-no'
+  ;['odb-up','odb-dn','odb-l','odb-r','odb-no'].forEach(function(id){var b=$v(id);if(b)b.classList.toggle('on',id===a)})
+}
+// Separate opacity-fade duration toggles (in + out).
+function syncFade(){var fi=gv('fadeInSeparate')==='true',fo=gv('fadeOutSeparate')==='true'
+  var t=$v('fadeInToggle');if(t)t.classList.toggle('on',fi);var s=$v('fadeInSld');if(s)s.classList.toggle('off',!fi)
+  var t2=$v('fadeOutToggle');if(t2)t2.classList.toggle('on',fo);var s2=$v('fadeOutSld');if(s2)s2.classList.toggle('off',!fo)
+}
+var fiTog=$v('fadeInToggle');if(fiTog)fiTog.addEventListener('click',function(){sv('fadeInSeparate',gv('fadeInSeparate')==='true'?'false':'true');syncFade();clearPA();schedPV()})
+var foTog=$v('fadeOutToggle');if(foTog)foTog.addEventListener('click',function(){sv('fadeOutSeparate',gv('fadeOutSeparate')==='true'?'false':'true');syncFade();clearPA();schedPV()})
+// Fill-color animation toggles (engine animates it natively via the fill-color animator).
+function syncColorTog(){var ci=$v('colorInToggle');if(ci)ci.classList.toggle('on',gv('colorInEnable')==='true');var co=$v('colorOutToggle');if(co)co.classList.toggle('on',gv('colorOutEnable')==='true')}
+var ciTog=$v('colorInToggle');if(ciTog)ciTog.addEventListener('click',function(){sv('colorInEnable',gv('colorInEnable')==='true'?'false':'true');syncColorTog();clearPA()})
+var coTog=$v('colorOutToggle');if(coTog)coTog.addEventListener('click',function(){sv('colorOutEnable',gv('colorOutEnable')==='true'?'false':'true');syncColorTog();clearPA()})
+// Collapsed (simple, presets only) vs expanded (advanced) view.
+function syncView(){var c=$v('root').classList.contains('collapsed');var b=$v('viewToggle');if(b)b.textContent=c?'Customize ▾':'Hide controls ▴'}
+var vTog=$v('viewToggle');if(vTog)vTog.addEventListener('click',function(){var r=$v('root'),c=!r.classList.contains('collapsed');r.classList.toggle('collapsed',c);syncView();try{localStorage.setItem('taCollapsed',c?'true':'false')}catch(e){}})
+
+// ── Timing hint ─────────────────────────────────────────────────────────
+function updTH(){var dur=nv('duration'),stag=nv('stagger'),del=nv('delayStart'),t='Each: '+dur.toFixed(2)+'s'
+  if(stag>0)t+=' · Stagger: +'+stag.toFixed(2)+'s';if(del>0)t+=' · Delay: '+del.toFixed(2)+'s'
+  var el=$v('thHint');if(el)el.textContent=t}
+
+// ── Presets ─────────────────────────────────────────────────────────────
+var BP={
+  'fade-up':    {splitMode:'character',duration:.45,stagger:.04, staggerDir:'forward',easing:'DECELERATE',       delayStart:0,translateY:32, translateX:0,  scaleStart:100,opacityStart:0,blurStart:0, rotateZ:0, easingVarId:''},
+  'scale-in':   {splitMode:'character',duration:.5, stagger:.045,staggerDir:'forward',easing:'EASE_OUT_BACK', delayStart:0,translateY:0,  translateX:0,  scaleStart:0,  opacityStart:0,blurStart:0, rotateZ:0, bezierX1:.25,bezierY1:.1,bezierX2:.25,bezierY2:1},
+  'blur-in':    {splitMode:'word',     duration:.65,stagger:.1,  staggerDir:'forward',easing:'EASE_OUT',      delayStart:0,translateY:0,  translateX:0,  scaleStart:100,opacityStart:0,blurStart:20,rotateZ:0, bezierX1:.25,bezierY1:.1,bezierX2:.25,bezierY2:1},
+  'slide-in':   {animateIn:true,splitMode:'word',duration:.65,stagger:.07,staggerDir:'forward',easing:'DECELERATE',easingVarId:'',delayStart:0,translateY:0,translateX:-60,scaleStart:100,opacityStart:0,blurStart:0,rotateZ:0,fadeInSeparate:true,fadeInDuration:.05,animateOut:true,holdTime:1,outDuration:.4,outStagger:.04,outStaggerDir:'backward',outEasing:'ACCELERATE',outEasingVarId:'',outTranslateY:0,outTranslateX:60,outScale:100,outOpacity:0,outBlur:0,outRotate:0,fadeOutSeparate:true,fadeOutDuration:.05},
+  'typewriter': {splitMode:'character',duration:.01,stagger:.065,staggerDir:'forward',easing:'LINEAR',        delayStart:0,translateY:0,  translateX:0,  scaleStart:100,opacityStart:0,blurStart:0, rotateZ:0, bezierX1:.25,bezierY1:.1,bezierX2:.25,bezierY2:1},
+  'spring-pop': {splitMode:'character',duration:.6, stagger:.035,staggerDir:'forward',easing:'CUSTOM_SPRING', delayStart:0,translateY:40, translateX:0,  scaleStart:60, opacityStart:0,blurStart:0, rotateZ:0, bezierX1:.25,bezierY1:.1,bezierX2:.25,bezierY2:1}
+}
+// Built-in presets are partial; reset the structural toggles first so a preset is
+// self-contained (doesn't inherit the panel's current in/out/fade state).
+var PRESET_BASE={animateIn:true,animateOut:false,fadeInSeparate:false,fadeOutSeparate:false,maskReveal:false}
+document.querySelectorAll('#builtinGrid .pb').forEach(function(b){b.addEventListener('click',function(){var p=BP[b.getAttribute('data-p')];if(!p)return;document.querySelectorAll('.pb').forEach(function(x){x.classList.toggle('active',x===b)});applyAll(Object.assign({},PRESET_BASE,p));schedPV()})})
+
+// Custom presets live in the plugin backend's clientStorage (persists across
+// plugin close); localStorage in Figma's iframe is ephemeral. `customPresets`
+// is the local mirror, refreshed by the backend's 'presets' message.
+var customPresets=[]
+function saveCP(){try{localStorage.setItem('taPresets',JSON.stringify(customPresets))}catch(e){}}
+function renderCP(){var g=$v('customGrid');if(!g)return;g.innerHTML='';g.style.display=customPresets.length?'grid':'none'
+  customPresets.forEach(function(cp,i){var b=document.createElement('button');b.className='pb cp';b.title=cp.name;b.textContent=cp.name
+    var d=document.createElement('span');d.className='del';d.textContent='×'
+    d.addEventListener('click',function(e){e.stopPropagation();customPresets.splice(i,1);saveCP();renderCP()})
+    b.appendChild(d)
+    b.addEventListener('click',function(){document.querySelectorAll('.pb').forEach(function(x){x.classList.toggle('active',x===b)});applyAll(cp.params);schedPV()})
+    g.appendChild(b)})}
+var sTog=$v('saveToggle');if(sTog)sTog.addEventListener('click',function(){$v('saveRow').style.display='none';$v('saveForm').style.display='flex';$v('saveName').focus()})
+var sCan=$v('saveCancel');if(sCan)sCan.addEventListener('click',function(){$v('saveForm').style.display='none';$v('saveRow').style.display='flex';$v('saveName').value=''})
+var sOk=$v('saveOk');if(sOk)sOk.addEventListener('click',function(){var n=$v('saveName').value.trim();if(!n)return;customPresets.push({name:n,params:curP()});saveCP();renderCP();$v('saveForm').style.display='none';$v('saveRow').style.display='flex';$v('saveName').value=''})
+var sNm=$v('saveName');if(sNm)sNm.addEventListener('keydown',function(e){if(e.key==='Enter'&&sOk)sOk.click()})
+function clearPA(){document.querySelectorAll('.pb').forEach(function(b){b.classList.remove('active')})}
+
+// ── Bezier editor (factory; used for both in and out easing) ────────────
+// ── Accent color (user-pickable) ────────────────────────────────────────
+var ACCENT='#0d99ff';
+function hexRgb(h){h=(h||'').replace('#','');if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];return[parseInt(h.substr(0,2),16)||0,parseInt(h.substr(2,2),16)||0,parseInt(h.substr(4,2),16)||0]}
+function lighten(h,amt){var c=hexRgb(h);return'rgb('+c.map(function(v){return Math.round(v+(255-v)*amt)}).join(',')+')'}
+function accentRgba(a){var c=hexRgb(ACCENT);return'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'}
+function makeBezier(cfg){
+  var BCV=$v(cfg.canvas),BW=260,BH=160,PD=18,iW=BW-2*PD,iH=BH-2*PD
+  var P1={x:.25,y:.1},P2={x:.25,y:1},drag=null
+  function mx(v){return PD+v*iW} function my(v){return PD+iH-v*iH}
+  function fx(px){return Math.max(0,Math.min(1,(px-PD)/iW))} function fy(py){return 1-(py-PD)/iH}
+  function draw(){if(!BCV)return;var ctx=BCV.getContext('2d');if(!ctx)return
+    // Crisp on any DPI: size the backing store to displayed CSS px * devicePixelRatio,
+    // then map the logical BW x BH drawing space onto it.
+    var dpr=window.devicePixelRatio||1,cssW=BCV.clientWidth||BW,nW=Math.round(cssW*dpr),nH=Math.round(cssW*(BH/BW)*dpr)
+    if(BCV.width!==nW||BCV.height!==nH){BCV.width=nW;BCV.height=nH}
+    ctx.setTransform(nW/BW,0,0,nH/BH,0,0)
+    ctx.clearRect(0,0,BW,BH);ctx.fillStyle='#141414';ctx.fillRect(0,0,BW,BH)
+    ctx.strokeStyle='rgba(255,255,255,.055)';ctx.lineWidth=1
+    for(var i=0;i<=4;i++){var gx=mx(i/4),gy=my(i/4);ctx.beginPath();ctx.moveTo(gx,PD);ctx.lineTo(gx,BH-PD);ctx.stroke();ctx.beginPath();ctx.moveTo(PD,gy);ctx.lineTo(BW-PD,gy);ctx.stroke()}
+    ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=.75;ctx.beginPath();ctx.moveTo(mx(0),my(0));ctx.lineTo(mx(1),my(1));ctx.stroke()
+    ctx.strokeStyle=accentRgba(.45);ctx.lineWidth=1;ctx.setLineDash([3,3])
+    ctx.beginPath();ctx.moveTo(mx(0),my(0));ctx.lineTo(mx(P1.x),my(P1.y));ctx.stroke()
+    ctx.beginPath();ctx.moveTo(mx(1),my(1));ctx.lineTo(mx(P2.x),my(P2.y));ctx.stroke();ctx.setLineDash([])
+    ctx.strokeStyle=ACCENT;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mx(0),my(0));ctx.bezierCurveTo(mx(P1.x),my(P1.y),mx(P2.x),my(P2.y),mx(1),my(1));ctx.stroke()
+    ;[{p:P1,hot:drag==='p1'},{p:P2,hot:drag==='p2'}].forEach(function(h){ctx.beginPath();ctx.arc(mx(h.p.x),my(h.p.y),h.hot?7:5.5,0,Math.PI*2);ctx.fillStyle=h.hot?lighten(ACCENT,.28):ACCENT;ctx.fill();ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1.5;ctx.stroke()})
+    ctx.fillStyle='rgba(255,255,255,.5)';[[0,0],[1,1]].forEach(function(p){ctx.beginPath();ctx.arc(mx(p[0]),my(p[1]),3,0,Math.PI*2);ctx.fill()})
+  }
+  function updPaste(){var el=$v(cfg.paste);if(el)el.value='cubic-bezier('+nBz(cfg.x1).toFixed(2)+', '+nBz(cfg.y1).toFixed(2)+', '+nBz(cfg.x2).toFixed(2)+', '+nBz(cfg.y2).toFixed(2)+')'}
+  function syncInputs(){sv(cfg.x1,P1.x.toFixed(3));sv(cfg.y1,P1.y.toFixed(3));sv(cfg.x2,P2.x.toFixed(3));sv(cfg.y2,P2.y.toFixed(3));updPaste();schedPV()}
+  function syncFromInputs(){P1={x:nBz(cfg.x1),y:nBz(cfg.y1)};P2={x:nBz(cfg.x2),y:nBz(cfg.y2)};draw();updPaste();schedPV()}
+  if(BCV)BCV.addEventListener('mousedown',function(e){var r=BCV.getBoundingClientRect(),s=r.width?BW/r.width:1,px=(e.clientX-r.left)*s,py=(e.clientY-r.top)*s,d1=Math.hypot(px-mx(P1.x),py-my(P1.y)),d2=Math.hypot(px-mx(P2.x),py-my(P2.y));if(d1<14)drag='p1';else if(d2<14)drag='p2';draw();e.preventDefault()})
+  window.addEventListener('mousemove',function(e){if(!drag||!BCV)return;var r=BCV.getBoundingClientRect(),s=r.width?BW/r.width:1,px=(e.clientX-r.left)*s,py=(e.clientY-r.top)*s,x=fx(px),y=fy(py);if(drag==='p1')P1={x:x,y:y};else P2={x:x,y:y};syncInputs();draw()})
+  window.addEventListener('mouseup',function(){if(drag){drag=null;draw()}})
+  ;[cfg.x1,cfg.y1,cfg.x2,cfg.y2].forEach(function(id){var el=$v(id);if(el)el.addEventListener('input',syncFromInputs)})
+  var pel=$v(cfg.paste);if(pel)pel.addEventListener('input',function(){var m=pel.value.match(/-?\d*\.?\d+/g);if(m&&m.length>=4){sv(cfg.x1,m[0]);sv(cfg.y1,m[1]);sv(cfg.x2,m[2]);sv(cfg.y2,m[3]);syncFromInputs()}})
+  // Redraw whenever the canvas is resized or first shown (fixes blurry first paint).
+  if(BCV&&window.ResizeObserver){try{new ResizeObserver(function(){draw()}).observe(BCV)}catch(e){}}
+  return {refresh:function(){P1={x:nBz(cfg.x1),y:nBz(cfg.y1)};P2={x:nBz(cfg.x2),y:nBz(cfg.y2)};draw();updPaste()}}
+}
+var bezIn=makeBezier({canvas:'bzCanvas',x1:'bezierX1',y1:'bezierY1',x2:'bezierX2',y2:'bezierY2',paste:'bzPaste'})
+var bezOut=makeBezier({canvas:'outBzCanvas',x1:'outBezierX1',y1:'outBezierY1',x2:'outBezierX2',y2:'outBezierY2',paste:'outBzPaste'})
+
+// Apply a user-chosen accent: override the brand vars on #root (cascades to every
+// accent element) + re-tint the JS-drawn bezier canvases. Persisted in localStorage.
+function applyAccent(hex,save){
+  ACCENT=hex
+  var s=$v('root').style
+  s.setProperty('--figma-color-bg-brand',hex)
+  s.setProperty('--figma-color-bg-brand-hover',lighten(hex,.22))
+  s.setProperty('--figma-color-border-brand',hex)
+  s.setProperty('--figma-color-text-brand',lighten(hex,.4))
+  if(typeof bezIn!=='undefined')bezIn.refresh()
+  if(typeof bezOut!=='undefined')bezOut.refresh()
+  if(save)try{localStorage.setItem('taAccent',hex)}catch(e){}
+}
+;(function(){var el=$v('accentColor');if(!el)return
+  var saved;try{saved=localStorage.getItem('taAccent')}catch(e){}
+  saved=saved||'#0d99ff';el.value=saved;applyAccent(saved,false)
+  el.addEventListener('input',function(){applyAccent(el.value,true)})
+})()
+
+// ── Read / apply all params ─────────────────────────────────────────────
+function curP(){return{
+  splitMode:gv('splitMode'),timingMode:gv('timingMode'),animateIn:gv('animateIn')!=='false',duration:nv('duration'),stagger:nv('stagger'),staggerDir:gv('staggerDir'),
+  easing:gv('easing'),easingVarId:gv('easingVarId'),delayStart:nv('delayStart'),translateY:nv('translateY'),translateX:nv('translateX'),
+  scaleStart:nv('scaleStart'),opacityStart:nv('opacityStart'),blurStart:nv('blurStart'),rotateZ:nv('rotateZ'),
+  bezierX1:nBz('bezierX1'),bezierY1:nBz('bezierY1'),bezierX2:nBz('bezierX2'),bezierY2:nBz('bezierY2'),
+  animateOut:gv('animateOut')==='true',holdTime:nv('holdTime'),outDuration:nv('outDuration'),outStagger:nv('outStagger'),outStaggerDir:gv('outStaggerDir'),
+  outEasing:gv('outEasing'),outEasingVarId:gv('outEasingVarId'),outTranslateY:nv('outTranslateY'),outTranslateX:nv('outTranslateX'),
+  outScale:nv('outScale'),outOpacity:nv('outOpacity'),outBlur:nv('outBlur'),outRotate:nv('outRotate'),
+  outBezierX1:nBz('outBezierX1'),outBezierY1:nBz('outBezierY1'),outBezierX2:nBz('outBezierX2'),outBezierY2:nBz('outBezierY2'),
+  fadeInSeparate:gv('fadeInSeparate')==='true',fadeInDuration:nv('fadeInDuration'),fadeOutSeparate:gv('fadeOutSeparate')==='true',fadeOutDuration:nv('fadeOutDuration'),
+  colorIn:gv('colorInEnable')==='true'?gv('colorInVal'):'',outColor:gv('colorOutEnable')==='true'?gv('colorOutVal'):'',
+  maskReveal:gv('maskReveal')==='true',maskPadding:nv('maskPadding')}}
+function applyAll(p){
+  SLIDERS.forEach(function(id){if(p[id]!=null)setSlider(id,p[id])})
+  if(p.bezierX1!=null){sv('bezierX1',p.bezierX1);sv('bezierY1',p.bezierY1);sv('bezierX2',p.bezierX2);sv('bezierY2',p.bezierY2)}
+  if(p.outBezierX1!=null){sv('outBezierX1',p.outBezierX1);sv('outBezierY1',p.outBezierY1);sv('outBezierX2',p.outBezierX2);sv('outBezierY2',p.outBezierY2)}
+  if(p.splitMode)syncSM(p.splitMode)
+  if(p.timingMode)syncTM(p.timingMode)
+  if(p.staggerDir)syncSD(p.staggerDir)
+  if(p.easing){sv('easing',p.easing);sv('easingVarId',p.easing==='VARIABLE'?(p.easingVarId||''):'');applyEasingState()}
+  if(p.animateIn!=null)sv('animateIn',p.animateIn?'true':'false')
+  if(p.animateOut!=null)sv('animateOut',p.animateOut?'true':'false')
+  if(p.outStaggerDir)syncOSD(p.outStaggerDir)
+  if(p.outEasing){sv('outEasing',p.outEasing);sv('outEasingVarId',p.outEasing==='VARIABLE'?(p.outEasingVarId||''):'');applyOutEasingState()}
+  if(p.fadeInSeparate!=null)sv('fadeInSeparate',p.fadeInSeparate?'true':'false')
+  if(p.fadeOutSeparate!=null)sv('fadeOutSeparate',p.fadeOutSeparate?'true':'false')
+  if(p.maskReveal!=null)sv('maskReveal',p.maskReveal?'true':'false')
+  if(p.colorIn!=null){if(p.colorIn){sv('colorInVal',p.colorIn);sv('colorInEnable','true')}else sv('colorInEnable','false')}
+  if(p.outColor!=null){if(p.outColor){sv('colorOutVal',p.outColor);sv('colorOutEnable','true')}else sv('colorOutEnable','false')}
+  syncDP();syncODP();syncAnimateIn();syncAnimateOut();syncFade();syncMask();syncColorTog();updTH();if(typeof bezIn!=='undefined')bezIn.refresh();if(typeof bezOut!=='undefined')bezOut.refresh()
+}
+
+// ── CEP bridge + After Effects integration ──────────────────────────────
+function evalES(script,cb){ if(window.__adobe_cep__&&window.__adobe_cep__.evalScript){window.__adobe_cep__.evalScript(script,cb||function(){});} }
+var btn=$v('btnAnimate')
+function setStatus(msg,isErr){var s=$v('statusEl');if(s){s.textContent=msg||'';s.style.color=isErr?'#ff6b6b':'';}}
+function handleResult(res){res=String(res||'');var parts=res.split('|');setStatus(parts.slice(1).join('|')||res, parts[0]!=='OK');}
+if(btn)btn.addEventListener('click',function(){if(btn.disabled)return;saveLast();setStatus('Animating…');evalES('TA_animate('+JSON.stringify(curP())+')',handleResult)})
+var btnM=$v('btnMogrt')
+if(btnM)btnM.addEventListener('click',function(){setStatus('Exporting .mogrt… (confirm any AE dialog)');evalES('TA_exportMogrt()',handleResult)})
+
+// Persist last-used params locally (CEP localStorage survives sessions).
+function saveLast(){try{localStorage.setItem('taLast',JSON.stringify(curP()))}catch(e){}}
+function loadLast(){try{var s=localStorage.getItem('taLast');if(s)applyAll(JSON.parse(s))}catch(e){}}
+
+// Poll AE selection -> preview text + Animate enabled state.
+var _selKey='__init__'
+function pollSelection(force){
+  evalES('TA_selection('+(force?'true':'false')+')',function(res){
+    res=String(res||'');var parts=res.split('|');
+    var enabled=parts[0]==='OK'&&parts[1]==='1';var text=parts.slice(2).join('|');
+    if(res!==_selKey){_selKey=res;pvTxt=enabled?text:'';schedPV();setStatus(enabled?'Ready to animate':'Select a text layer');}
+    if(btn)btn.disabled=!enabled;
+  });
+}
+// ANY evalScript while a text layer is in edit mode makes AE commit the edit and throw
+// the caret back to the start -- even a read-only selection query does it, so guarding
+// the .value read alone is not enough; the poll itself has to stop.
+//
+// While the user types in the comp, their mouse is over the comp, not this panel. So
+// only talk to AE while the panel is hovered or has just been focused, and never on an
+// unconditional background timer.
+var _hot=false,_lastPoll=0
+function pollNow(force){var t=+new Date();if(t-_lastPoll<250)return;_lastPoll=t;pollSelection(force)}
+var _rootEl=$v('root')
+if(_rootEl){
+  _rootEl.addEventListener('mouseenter',function(){_hot=true;pollNow(true)})
+  _rootEl.addEventListener('mouseleave',function(){_hot=false})
+}
+setInterval(function(){if(_hot)pollSelection(false)},600);
+window.addEventListener('focus',function(){pollNow(true)});
+
+// ── Init ────────────────────────────────────────────────────────────────
+try{var _cp=localStorage.getItem('taPresets');if(_cp)customPresets=JSON.parse(_cp)||[];}catch(e){}
+try{if(localStorage.getItem('taCollapsed')==='false')$v('root').classList.remove('collapsed');}catch(e){}
+setupSliders();syncSM();syncSD();syncDP();applyEasingState();updTH();renderCP()
+syncAnimateIn();syncAnimateOut();syncMask();syncOSD();syncODP();applyOutEasingState();syncFade();syncColorTog();syncView()
+loadLast()
+pollSelection()
+</script>
+</body>
+</html>

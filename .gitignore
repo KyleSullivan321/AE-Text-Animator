@@ -5,6 +5,12 @@
 .claude/settings.local.json
 *.local
 
+# Signing certs / packaged extensions
+*.p12
+*.pfx
+*.zxp
+.rnd
+
 # Dependencies
 node_modules/
 .venv/

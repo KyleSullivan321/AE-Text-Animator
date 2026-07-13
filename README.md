@@ -1,176 +1,95 @@
-# Claude Vibe-Coding Starter Template
+# AE Text Animator
 
-A general-purpose, stack-agnostic base structure for starting projects with Claude
-Code. It bakes in two proven disciplines — **write less code** and **think before
-coding, verify after** — as on-demand skills, agents, commands, and hooks, so every
-new project starts fast without re-deriving the setup each time.
+An After Effects text-animator that ports the Figma Motion "Text Animator" plugin —
+same panel UI and live previews, driving After Effects instead of Figma — and whose
+output can be exported as a **Motion Graphics Template (.mogrt)** for Premiere Pro.
 
-## Starting a new project (cleanest path)
+> Separate project from the Figma plugin (kept in its own folder). It **reuses** the
+> Figma panel's UI and animation model; it does **not** share a build or repo.
 
-This template lives at **[KyleSullivan321/Claude-Starter](https://github.com/KyleSullivan321/Claude-Starter)**,
-marked as a GitHub *template repository* so new projects start with their own fresh
-git history — no template history or leftover remote to clean up.
+## What it ports from the Figma plugin
 
-**Easiest — use the helper script** (wraps the GitHub template path, with an offline
-local-copy fallback; handles `chmod`, `git init`, and the first commit for you):
+- Animate a text layer by **character / word / line** (native selector ranges).
+- Per-unit **stagger** (forward / backward / random), **duration**, **start delay**.
+- **Animate in** and **Animate out** phases with a **hold** between them; each phase
+  has its own duration, stagger, order, easing, direction, and target transforms.
+- Transforms: translate X/Y, scale, opacity, blur, rotate.
+- **Separate opacity-fade duration** (left-aligned in, right-aligned out).
+- Easings: Linear, Ease in/out/in-and-out, **Decelerate / Accelerate / Smooth**,
+  Overshoot, Bouncy, Gentle, Spring, Custom bezier.
+- Presets (built-in + saved), the live CSS preview, and the simple/advanced view.
 
-```powershell
-./new-project.ps1 my-app                 # Windows / PowerShell
-```
-```bash
-./new-project.sh my-app                  # Git Bash / macOS / Linux
-./new-project.sh my-app ~/work --local   # force offline local copy
-```
+## Architecture
 
-**Or by hand:**
+| Layer | Tech | Notes |
+|------|------|-------|
+| **Panel UI** | **Adobe CEP extension** (HTML/CSS/JS) | Ports the Figma panel almost verbatim — the CSS live preview, presets, easing menus, in/out phases, collapsed view. CEP is chosen over ScriptUI (can't do the CSS preview / rich controls) and over UXP (AE UXP is still immature). |
+| **Engine** | **ExtendScript** (`host/*.jsx`) | Ports `code.ts`'s logic onto **native AE Text Animators + Expression Selectors** on one editable text layer, wrapped in undo groups. |
+| **Bridge** | `CSInterface.js` | Panel ↔ ExtendScript via `evalScript`. Replaces the Figma `postMessage` contract. |
+| **MOGRT** | Essential Graphics + `comp.exportAsMotionGraphicsTemplate()` | Expose parameters as Essential Graphics controls, then export for Premiere. |
 
-```bash
-# GitHub template (cleanest — fresh history, needs the gh CLI):
-gh repo create my-app --template KyleSullivan321/Claude-Starter --private --clone
-
-# No gh / offline — degit-style copy with no history, then init your own:
-npx degit KyleSullivan321/Claude-Starter my-app && cd my-app && git init
-```
-
-> Avoid a plain `git clone` of the template — it drags the template's history and
-> `origin` along, so you'd have to `rm -rf .git && git init` every time. The template
-> repo and the script avoid that entirely.
-
-**Then, in the new project:**
-
-1. **Fill in `CLAUDE.md`** — `Project specifics`, `Conventions`, `Gotchas`. Delete
-   placeholders you don't need.
-2. **Prune what you won't use.** Everything here is opt-in. Delete any skill, agent,
-   command, rule, or hook that doesn't fit. Smaller is better.
-3. **Start coding.** For a new feature: `/spec` → review the spec → fresh session →
-   `/plan` → implement → `/ship`.
-
-> The helper script re-runs `chmod +x .claude/hooks/*.sh`, because the executable bit
-> is lost through GitHub-template/degit copies on Windows. If you start by hand, run
-> that once yourself. `settings.local.json` is gitignored and intentionally does not
-> travel — each person regenerates their own local overrides.
-
-## What's in here
+Planned layout:
 
 ```
-.
-├── CLAUDE.md            # Lean project memory (loaded every session)
-├── AGENTS.md            # Same rules, portable to non-Claude agents
-├── SPEC.template.md     # Interview-driven spec starter
-├── .env.example         # Copy to .env (gitignored)
-├── .gitignore
-└── .claude/
-    ├── settings.json    # Permission allowlist + hook wiring (committed)
-    ├── settings.local.json  # Your personal overrides (gitignored)
-    ├── agents/          # Subagents — isolated context, fresh-eyes review
-    ├── commands/        # Slash commands — repeatable workflows
-    ├── skills/          # On-demand knowledge that won't bloat context
-    ├── rules/           # Modular, path-scoped team instructions
-    └── hooks/           # Deterministic guarantees (block secrets, etc.)
+AE Text Animator/
+  CSXS/manifest.xml         CEP extension manifest
+  client/                   panel: index.html, css/, js/ (ported UI), CSInterface.js
+  host/                     ExtendScript engine (animation + MOGRT)
+  .debug                    CEP remote-debug ports (dev)
+  README.md
 ```
 
-## Memory: how context persists across sessions
+## Easing in After Effects (the tricky part)
 
-You don't re-explain the project every session. Three layers carry knowledge
-forward, and the template uses all three:
+Figma easings are cubic-beziers and springs. AE's standard **temporal ease can't
+overshoot** past a keyframe's value, so Overshoot / Bounce / Spring / arbitrary
+custom-bezier curves can't be reproduced with two keyframes + temporal ease alone.
+The faithful, MOGRT-friendly approach is **expression-driven easing**: each animated
+value is computed by an expression evaluating the exact cubic-bezier / spring per
+frame. This matches the Figma preview precisely and stays parametric (great for
+Essential Graphics sliders). Simple monotonic eases can also use native keyframe ease.
 
-| Layer | Who writes it | Committed? | Loaded |
-|-------|---------------|-----------|--------|
-| **`CLAUDE.md`** | You | ✅ shared | In full, every session — keep it lean |
-| **`.claude/rules/`** | You | ✅ shared | Always, or only when matching files are touched (path-scoped) |
-| **Auto memory** | Claude, automatically | ❌ private, machine-local | `MEMORY.md` index every session; topic files on demand |
+## Engine approach — DECIDED: native Text Animators (editable text)
 
-**Auto memory** is the native feature that stops you re-contextualizing. It's **on by
-default** (and set explicitly in `settings.json`). As Claude works it saves its own
-notes — build quirks, debugging insights, preferences it discovers — to
-`~/.claude/projects/<project>/memory/`. A concise `MEMORY.md` index auto-loads each
-session; detailed topic files load only when needed. Browse or edit it with
-`/memory`.
+The engine drives **one editable text layer** with **native AE Text Animators +
+Expression Selectors** (pivoted from an earlier split-into-layers approach). Each
+animator's `ADBE Text Expressible Amount` runs a cubic-bezier Newton solver keyed on
+`textIndex`/`textTotal`, **unclamped** so overshoot/spring/custom-bezier curves match
+the Figma CSS preview exactly. Technique derived from `TypeArray_v2.0.ffx`.
 
-Two things to know for a **template**:
-- Auto memory is keyed to the git repo and lives under `~/.claude/`, so it is **not**
-  copied when you copy this folder — each new project gets its own clean memory. ✅
-- It's **private and per-machine** — never committed or shared. Anything the *team*
-  needs to persist goes in `CLAUDE.md` or `.claude/rules/` instead.
+Why native beats splitting layers:
+- **Perfect spacing/kerning/justification for free** — no glyph-advance measuring.
+- **Text stays editable** — retype in AE (or in Premiere via MOGRT) and the animation
+  auto-restaggers, because `textTotal`-derived timing is computed live in the expression.
+- **Per-character blur is native** (`ADBE Text Blur`) — no Gaussian-effect-per-layer.
+- IN and OUT are separate stacked animators that compose (additive/multiplicative).
 
-**Decision rule:** team-shared and stable → `CLAUDE.md` or `.claude/rules/`; private,
-discovered-as-you-go → let auto memory handle it. When you correct the same thing
-twice, promote it to the right shared layer.
+**Target: public release** — plan for a signed `.zxp`, licensing, and polish.
 
+## Roadmap
 
+1. ✅ **Scaffold** — CEP extension shell + host bridge (round-trip proven).
+2. ✅ **Full UI panel** — the whole Figma panel ported (previews, custom-bezier graphs,
+   easing menus incl. Decelerate/Accelerate/Smooth, in/out phases, simple/advanced view).
+   CEP integration: `evalScript` instead of postMessage, selection polling, `localStorage`
+   persistence (presets, last params, view state).
+3. ✅ **Engine (native)** — Text Animators + expression selectors; char/word/line ranges,
+   expression-driven exact cubic-bezier easing incl. overshoot (matches the CSS previews),
+   in → hold → out, all transforms + native per-char blur, separate opacity-fade duration,
+   stagger orders. Verified in AE via the render-to-PNG loop.
+4. ✅ **AE-context** — spacing/kerning/justification handled natively; scale/rotate pivot
+   verified; overshoot verified. (Remaining nicety: center-pivot for scale/rotate to match
+   Figma glyph-center exactly — currently native baseline anchor.)
+5. ✅ **MOGRT** — Source Text exposed to Essential Graphics + one-click `.mogrt` export
+   button (uses AE's native export dialog).
+6. 🔜 **Packaging** — ZXP signing + installer, licensing.
 
-### Skills (`.claude/skills/`)
+Everything through #5 is **built, installed, and verified**; #6 is packaging for release.
 
-Loaded on demand, so they don't cost context every session. Auto-trigger on
-relevant work or invoke with `/<name>`.
+## Dev setup (CEP)
 
-| Skill | What it does |
-|-------|--------------|
-| `lazy-senior-dev` | The decision hierarchy — write the least code possible (YAGNI → stdlib → platform → installed dep → one line → minimal). |
-| `think-before-coding` | Surface assumptions, present interpretations, push back before coding. |
-| `surgical-changes` | Minimal-diff discipline — touch only what you must, match existing style. |
-| `verification-loop` | Define a runnable success criterion and loop until it passes; show evidence. |
-
-### Commands (`.claude/commands/`)
-
-| Command | What it does |
-|---------|--------------|
-| `/spec` | Interview you about a feature, then write a self-contained `SPEC.md`. |
-| `/plan` | Explore-first: read the relevant code, then produce an implementation plan. |
-| `/review` | Fresh-context, severity-rated review of the current diff (bugs + simplification). |
-| `/ship` | Verify (test/build/lint) → commit with a good message → open a PR. |
-| `/cleanup` | Anti-slop pass: simplify, delete dead code, tighten the diff. |
-
-### Agents (`.claude/agents/`)
-
-Run in isolated context. The reviewer/verifier agents see only the diff and
-criteria — they don't inherit the reasoning that wrote the code, which is the point.
-
-| Agent | Role |
-|-------|------|
-| `planner` | Explore the codebase and design an implementation plan (read-heavy, no edits). |
-| `code-reviewer` | Severity-rated review: logic defects, edge cases, simplification opportunities. |
-| `security-reviewer` | OWASP Top 10, secrets, unsafe patterns. |
-| `verifier` | Evidence-based completion check — did the work actually meet its criteria? |
-
-### Hooks (`.claude/hooks/`)
-
-Deterministic — they run regardless of what the model decides.
-
-- `block-sensitive-files.sh` — blocks writes to `.env`, secret files, and lockfiles.
-  Wired in `settings.json` under `hooks.PreToolUse`.
-- See `.claude/hooks/README.md` to add auto-format / auto-lint on edit.
-
-## The core workflow
-
-```
-/spec  →  (review spec)  →  fresh session  →  /plan  →  implement  →  /ship
-                                                  ↑                     │
-                                                  └──── /review ────────┘
-```
-
-The single highest-leverage habit: **give Claude a check it can run itself** (tests,
-build, screenshot) so it closes its own loop instead of waiting for you to catch
-mistakes.
-
-## Optional add-ons (not included by default — add per project)
-
-Kept out to stay lean and host-agnostic. Add when a project needs them:
-
-- **MCP servers** (`.mcp.json`) — only the ones you use, e.g. `context7` for docs,
-  Playwright for browser testing. Run `claude mcp add` or create `.mcp.json`.
-- **GitHub Actions** (`.github/workflows/`) — PR-review-on-`@claude`, scheduled
-  quality/dependency-audit jobs. Requires the Claude Code GitHub Action.
-- **Stack-specific skills** — testing patterns, framework conventions, design tokens.
-- **Path-scoped rules** — add `.claude/rules/*.md` as the project grows (see the
-  starter in that directory) instead of growing `CLAUDE.md`.
-- **Code-intelligence plugin** — for typed languages, gives precise symbol nav.
-
-## Why this structure
-
-It mirrors the official Claude Code best practices (lean `CLAUDE.md`, skills-first,
-hooks for guarantees, subagents for isolation, a verification loop) and the
-efficiency philosophy of the
-[ponytail](https://github.com/DietrichGebert/ponytail) and
-[andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
-projects. Everything is documented so you can prune it with confidence per project.
+- Enable unsigned extensions during dev: set `PlayerDebugMode = 1` in the CSXS prefs
+  (`~/Library/Preferences/com.adobe.CSXS.<n>.plist` on macOS; `HKCU\Software\Adobe\CSXS.<n>`
+  on Windows), then place/symlink the extension into the CEP `extensions` folder.
+- Remote-debug the panel via the port in `.debug` (Chrome at `localhost:<port>`).
+- Distribution later requires signing the extension into a **.zxp** (ZXPSignCmd).

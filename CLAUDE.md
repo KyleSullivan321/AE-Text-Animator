@@ -52,25 +52,58 @@ commands** so long sessions don't lose working state.
 
 ## Project specifics
 
-<!-- FILL THIS IN per project. Delete the placeholders you don't need. -->
+After Effects text-animator that ports the **Figma "Text Animator"** plugin
+(`../../Figma Text Animator/figma-text-animator/`) and exports as a Premiere **MOGRT**.
+Reuses that plugin's UI/previews and animation model; separate build/repo.
 
-- **Stack:** <!-- e.g. TypeScript + React + Vite -->
-- **Install:** <!-- e.g. npm install -->
-- **Run / dev:** <!-- e.g. npm run dev -->
-- **Test:** <!-- e.g. npm test  (prefer single tests over full suite for speed) -->
-- **Lint / typecheck:** <!-- e.g. npm run lint && npm run typecheck -->
-- **Build:** <!-- e.g. npm run build -->
+- **Stack:** Adobe **CEP** extension (panel = HTML/CSS/JS in `client/`) + **ExtendScript**
+  engine (`host/textanimator.jsx`) driving the AE DOM. `CSXS/manifest.xml` is the
+  CEP manifest. No build step yet (plain files).
+- **Run / dev:** see `INSTALL.md` — set `PlayerDebugMode=1`, symlink the folder into
+  `%APPDATA%\Adobe\CEP\extensions\`, open **Window → Extensions → AE Text Animator**.
+- **Test:** autonomous render loop — drive AE with `AfterFX.exe -r script.jsx`, render a
+  frame via `comp.saveFrameToPng(t, file)`, view the PNG. Harness pattern in the session
+  scratchpad (`harness_native*.jsx`): cleanup `TA_*` comps → `$.evalFile` engine →
+  `comp.openInViewer()` (required, or it animates the wrong comp) → select text → animate
+  → render. Syntax-check with the `node -e "new Function(...)"` one-liner too.
+- **Debug panel:** Chrome at `localhost:8088` (port from `.debug`).
+
+## Decisions (locked)
+
+- **Engine = NATIVE Text Animators** (pivoted 2026-07-06 from split-layers). One
+  editable text layer; animation via native Text Animators + Expression Selectors.
+  Gives perfect spacing/kerning/justification for free, keeps text editable, and makes
+  editable-text MOGRT trivial. Split-layer approach is retired.
+- **Easing = expression-driven selector** — each animator's `ADBE Text Expressible
+  Amount` runs a cubic-bezier Newton solver keyed on `textIndex`/`textTotal`, unclamped
+  so back/spring curves overshoot. Matches the Figma preview exactly. Technique derived
+  from `TypeArray_v2.0.ffx`. IN amount = `(1-e)*100`, OUT = `eo*100`; IN and OUT are
+  separate stacked animators that compose. `outStart` is computed live from `textTotal`,
+  so retyping in Premiere auto-restaggers.
+- **Target = public release** — plan for signed `.zxp` + installer + licensing.
 
 ## Conventions
 
-<!-- Only list rules that DIFFER from language defaults Claude already knows. -->
-
-- <!-- e.g. Use ES modules (import/export), not require -->
-- <!-- e.g. Branch naming: feature/<short-desc>; never commit to main directly -->
-- <!-- e.g. Never commit .env or secrets (also enforced by a hook) -->
+- Panel ↔ engine: `window.__adobe_cep__.evalScript('TA_fn(' + JSON.stringify(params) + ')', cb)`.
+  Params are inlined as a JS object literal (ExtendScript has no native JSON), so keep
+  params to JSON-safe values. Engine returns `"OK|msg"` or `"ERR|msg"` strings.
+- Wrap every DOM-mutating engine action in `app.beginUndoGroup()/endUndoGroup()`.
 
 ## Gotchas
 
-<!-- Non-obvious behaviors, required env vars, things that bite newcomers. -->
-
-- <!-- e.g. DATABASE_URL must be set before running tests -->
+- ExtendScript is ES3 — no `JSON`, no `let/const`, no arrow functions, no `Array.map`.
+- **Chained ternaries `a ? b : c ? d : e` evaluate LEFT-associative in ExtendScript**
+  (non-standard) → `(a ? b : c) ? d : e`, giving wrong results. Use if/else or fully
+  parenthesize the else branch `a ? b : (c ? d : e)`. Bit the split-mode `rangeType`
+  map hard. This is ExtendScript-only; the panel (Chrome JS) is fine.
+- Native animator matchNames: `ADBE Text Animators` → `ADBE Text Animator` →
+  `ADBE Text Selectors` → `ADBE Text Expressible Selector` (`ADBE Text Range Type2`:
+  1=char, 3=word, 4=line; `ADBE Text Expressible Amount` = the expression). Properties
+  under `ADBE Text Animator Properties`: `ADBE Text Position 3D`, `ADBE Text Scale 3D`,
+  `ADBE Text Rotation`, `ADBE Text Opacity`, `ADBE Text Blur` (native per-char blur —
+  no Gaussian effect needed). Source Text = `ADBE Text Document`.
+- Spacing is native now — no `sourceRectAtTime` probe / `"A A"−"AA"` hacks (retired).
+- MOGRT export: `comp.exportAsMotionGraphicsTemplate(overwrite, path)`; expose Source
+  Text via `srcTextProp(layer).addToMotionGraphicsTemplateAs(comp, "Text")`. AE shows a
+  native font/media warning dialog — expected; user confirms it. `-r` headless testing
+  can't dismiss that dialog, so verify export interactively.
