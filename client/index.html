@@ -342,6 +342,19 @@
     </div>
   </div>
 
+  <!-- Background bars -->
+  <div class="sec adv">
+    <div class="sec-hd tgl-hd"><span>Background</span><button class="tgl" id="bgToggle" type="button" title="Draw a solid bar behind each line, animating with that line"><span class="tgl-dot"></span></button></div>
+    <input type="hidden" id="bgEnable" value="false">
+    <div id="bgControls" style="display:none">
+      <div class="row"><span class="lbl">Color</span><div class="ctrl"><input type="color" class="accent-inp" id="bgColor" value="#1122f0"></div></div>
+      <div class="row"><span class="lbl">Corner radius</span><div class="ctrl sld"><input type="range" id="bgRadius" min="0" max="80" step="1" value="0"><input class="sld-num" type="number" data-for="bgRadius" min="0" max="80" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl">Padding X</span><div class="ctrl sld"><input type="range" id="bgPadX" min="-20" max="120" step="1" value="16"><input class="sld-num" type="number" data-for="bgPadX" min="-20" max="120" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl">Padding Y</span><div class="ctrl sld"><input type="range" id="bgPadY" min="-20" max="120" step="1" value="8"><input class="sld-num" type="number" data-for="bgPadY" min="-20" max="120" step="1"><span class="sld-unit">px</span></div></div>
+      <div class="row"><span class="lbl"></span><div class="ctrl" style="opacity:.6;font-size:10px;line-height:1.35">Live: edit the text and each bar re-flows. Padding X/Y are live sliders on the TA&nbsp;Background layer. Adding/removing whole lines needs a re-run. Per-character/word bars aren't possible — AE can't measure sub-line geometry.</div></div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     <span class="footer-st" id="statusEl">Select a text layer</span>
@@ -359,7 +372,7 @@ function gv(id){var el=$v(id);return el?String(el.value||''):''}
 function nBz(id){var v=parseFloat(gv(id));return isNaN(v)?0:v}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
-var SLIDERS=['duration','stagger','delayStart','translateY','translateX','scaleStart','opacityStart','blurStart','rotateZ','fadeInDuration','holdTime','outDuration','outStagger','outTranslateY','outTranslateX','outScale','outOpacity','outBlur','outRotate','fadeOutDuration','maskPadding']
+var SLIDERS=['duration','stagger','delayStart','translateY','translateX','scaleStart','opacityStart','blurStart','rotateZ','fadeInDuration','holdTime','outDuration','outStagger','outTranslateY','outTranslateX','outScale','outOpacity','outBlur','outRotate','fadeOutDuration','maskPadding','bgRadius','bgPadX','bgPadY']
 
 // ── Height reporting ────────────────────────────────────────────────────
 var _lH=0,_rAF=0
@@ -521,6 +534,8 @@ function syncAnimateOut(){var on=gv('animateOut')==='true';var t=$v('outToggle')
 // Mask reveal toggle + padding.
 function syncMask(){var on=gv('maskReveal')==='true';var t=$v('maskToggle');if(t)t.classList.toggle('on',on);var c=$v('maskControls');if(c)c.style.display=on?'block':'none'}
 var mTog=$v('maskToggle');if(mTog)mTog.addEventListener('click',function(){sv('maskReveal',gv('maskReveal')==='true'?'false':'true');syncMask();clearPA();schedPV()})
+function syncBg(){var on=gv('bgEnable')==='true';var t=$v('bgToggle');if(t)t.classList.toggle('on',on);var c=$v('bgControls');if(c)c.style.display=on?'block':'none'}
+var bTog=$v('bgToggle');if(bTog)bTog.addEventListener('click',function(){sv('bgEnable',gv('bgEnable')==='true'?'false':'true');syncBg();clearPA()})
 var oTog=$v('outToggle');if(oTog)oTog.addEventListener('click',function(){sv('animateOut',gv('animateOut')==='true'?'false':'true');syncAnimateOut();clearPA();schedPV()})
 // Animate-in toggle hides the in-only controls (Animate by stays — split is shared).
 function syncAnimateIn(){var on=gv('animateIn')!=='false';var t=$v('inToggle');if(t)t.classList.toggle('on',on);document.querySelectorAll('.in-ctrl').forEach(function(el){el.style.display=on?'':'none'})}
@@ -565,7 +580,7 @@ var BP={
 }
 // Built-in presets are partial; reset the structural toggles first so a preset is
 // self-contained (doesn't inherit the panel's current in/out/fade state).
-var PRESET_BASE={animateIn:true,animateOut:false,fadeInSeparate:false,fadeOutSeparate:false,maskReveal:false}
+var PRESET_BASE={animateIn:true,animateOut:false,fadeInSeparate:false,fadeOutSeparate:false,maskReveal:false,bgEnable:false}
 document.querySelectorAll('#builtinGrid .pb').forEach(function(b){b.addEventListener('click',function(){var p=BP[b.getAttribute('data-p')];if(!p)return;document.querySelectorAll('.pb').forEach(function(x){x.classList.toggle('active',x===b)});applyAll(Object.assign({},PRESET_BASE,p));schedPV()})})
 
 // Custom presets live in the plugin backend's clientStorage (persists across
@@ -660,7 +675,8 @@ function curP(){return{
   outBezierX1:nBz('outBezierX1'),outBezierY1:nBz('outBezierY1'),outBezierX2:nBz('outBezierX2'),outBezierY2:nBz('outBezierY2'),
   fadeInSeparate:gv('fadeInSeparate')==='true',fadeInDuration:nv('fadeInDuration'),fadeOutSeparate:gv('fadeOutSeparate')==='true',fadeOutDuration:nv('fadeOutDuration'),
   colorIn:gv('colorInEnable')==='true'?gv('colorInVal'):'',outColor:gv('colorOutEnable')==='true'?gv('colorOutVal'):'',
-  maskReveal:gv('maskReveal')==='true',maskPadding:nv('maskPadding')}}
+  maskReveal:gv('maskReveal')==='true',maskPadding:nv('maskPadding'),
+  bgEnable:gv('bgEnable')==='true',bgColor:gv('bgColor'),bgRadius:nv('bgRadius'),bgPadX:nv('bgPadX'),bgPadY:nv('bgPadY')}}
 function applyAll(p){
   SLIDERS.forEach(function(id){if(p[id]!=null)setSlider(id,p[id])})
   if(p.bezierX1!=null){sv('bezierX1',p.bezierX1);sv('bezierY1',p.bezierY1);sv('bezierX2',p.bezierX2);sv('bezierY2',p.bezierY2)}
@@ -676,6 +692,8 @@ function applyAll(p){
   if(p.fadeInSeparate!=null)sv('fadeInSeparate',p.fadeInSeparate?'true':'false')
   if(p.fadeOutSeparate!=null)sv('fadeOutSeparate',p.fadeOutSeparate?'true':'false')
   if(p.maskReveal!=null)sv('maskReveal',p.maskReveal?'true':'false')
+  if(p.bgEnable!=null)sv('bgEnable',p.bgEnable?'true':'false')
+  if(p.bgColor)sv('bgColor',p.bgColor)
   if(p.colorIn!=null){if(p.colorIn){sv('colorInVal',p.colorIn);sv('colorInEnable','true')}else sv('colorInEnable','false')}
   if(p.outColor!=null){if(p.outColor){sv('colorOutVal',p.outColor);sv('colorOutEnable','true')}else sv('colorOutEnable','false')}
   syncDP();syncODP();syncAnimateIn();syncAnimateOut();syncFade();syncMask();syncColorTog();updTH();if(typeof bezIn!=='undefined')bezIn.refresh();if(typeof bezOut!=='undefined')bezOut.refresh()
@@ -704,28 +722,22 @@ function pollSelection(force){
     if(btn)btn.disabled=!enabled;
   });
 }
-// ANY evalScript while a text layer is in edit mode makes AE commit the edit and throw
-// the caret back to the start -- even a read-only selection query does it, so guarding
-// the .value read alone is not enough; the poll itself has to stop.
-//
-// While the user types in the comp, their mouse is over the comp, not this panel. So
-// only talk to AE while the panel is hovered or has just been focused, and never on an
-// unconditional background timer.
-var _hot=false,_lastPoll=0
-function pollNow(force){var t=+new Date();if(t-_lastPoll<250)return;_lastPoll=t;pollSelection(force)}
-var _rootEl=$v('root')
-if(_rootEl){
-  _rootEl.addEventListener('mouseenter',function(){_hot=true;pollNow(true)})
-  _rootEl.addEventListener('mouseleave',function(){_hot=false})
-}
-setInterval(function(){if(_hot)pollSelection(false)},600);
-window.addEventListener('focus',function(){pollNow(true)});
+// Poll AE selection continuously. TA_selection only re-reads the text DOCUMENT when the
+// selected layer changes (see host `_taSelSig`), so a steady poll on a stable selection
+// just returns cached text and never touches an in-progress edit -- the read-only layer
+// scan doesn't commit typing. (An earlier build gated this on panel hover to dodge a
+// caret bug that turned out to be another extension's poll, and that gating broke the
+// selection feedback: selecting a layer in the comp left the panel silent.)
+setInterval(function(){pollSelection(false)},600);
+// Returning to the panel refreshes the preview with whatever you just typed (the layer
+// signature is unchanged, so only a forced read picks up edited text).
+window.addEventListener('focus',function(){pollSelection(true)});
 
 // ── Init ────────────────────────────────────────────────────────────────
 try{var _cp=localStorage.getItem('taPresets');if(_cp)customPresets=JSON.parse(_cp)||[];}catch(e){}
 try{if(localStorage.getItem('taCollapsed')==='false')$v('root').classList.remove('collapsed');}catch(e){}
 setupSliders();syncSM();syncSD();syncDP();applyEasingState();updTH();renderCP()
-syncAnimateIn();syncAnimateOut();syncMask();syncOSD();syncODP();applyOutEasingState();syncFade();syncColorTog();syncView()
+syncAnimateIn();syncAnimateOut();syncMask();syncBg();syncOSD();syncODP();applyOutEasingState();syncFade();syncColorTog();syncView()
 loadLast()
 pollSelection()
 </script>

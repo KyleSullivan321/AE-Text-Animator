@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.kylesullivan.aetextanimator" ExtensionBundleVersion="1.0.3" ExtensionBundleName="AE Text Animator" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.kylesullivan.aetextanimator" ExtensionBundleVersion="1.0.4" ExtensionBundleName="AE Text Animator" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.kylesullivan.aetextanimator.panel" Version="1.0.3" />
+    <Extension Id="com.kylesullivan.aetextanimator.panel" Version="1.0.4" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>

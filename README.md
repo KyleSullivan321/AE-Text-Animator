@@ -28,7 +28,7 @@ output can be exported as a **Motion Graphics Template (.mogrt)** for Premiere P
 | **Bridge** | `CSInterface.js` | Panel ↔ ExtendScript via `evalScript`. Replaces the Figma `postMessage` contract. |
 | **MOGRT** | Essential Graphics + `comp.exportAsMotionGraphicsTemplate()` | Expose parameters as Essential Graphics controls, then export for Premiere. |
 
-Planned layout:
+Layout:
 
 ```
 AE Text Animator/
@@ -64,7 +64,7 @@ Why native beats splitting layers:
 - **Per-character blur is native** (`ADBE Text Blur`) — no Gaussian-effect-per-layer.
 - IN and OUT are separate stacked animators that compose (additive/multiplicative).
 
-**Target: public release** — plan for a signed `.zxp`, licensing, and polish.
+Source is released under the MIT license (see [LICENSE](LICENSE)).
 
 ## Roadmap
 
@@ -93,3 +93,14 @@ Everything through #5 is **built, installed, and verified**; #6 is packaging for
   on Windows), then place/symlink the extension into the CEP `extensions` folder.
 - Remote-debug the panel via the port in `.debug` (Chrome at `localhost:<port>`).
 - Distribution later requires signing the extension into a **.zxp** (ZXPSignCmd).
+
+## Install
+
+See [INSTALL.md](INSTALL.md) for loading the unsigned extension into After Effects
+(Windows dev install via `sync.ps1`), or build a signed `.zxp` with
+`package.ps1` (needs Adobe's free [ZXPSignCmd](https://github.com/Adobe-CEP/CEP-Resources/tree/master/ZXPSignCMD);
+the signing certificate is generated locally and is never committed).
+
+## License
+
+[MIT](LICENSE) (c) Kyle Sullivan.

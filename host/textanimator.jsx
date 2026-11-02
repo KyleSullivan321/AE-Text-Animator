@@ -219,6 +219,172 @@ function unitCount(full, splitMode) {
     return Math.max(full.replace(/[\r\n]/g, "").length, 1); // characters
 }
 
+// ── Background bars ─────────────────────────────────────────────────────────
+// One rect per line on a single shape layer, parented to the text layer so it
+// inherits the layer transform for free. Per-character/word bars are NOT possible
+// here: sourceRectAtTime reports layout bounds (it ignores animator opacity) and
+// ink bounds rather than advances, so sub-line geometry can't be measured -- see
+// test/experiments/text-background/. Lines measure cleanly.
+//
+// Defines `a` (IN amount, 100 -> 0) and `b` (OUT amount, 0 -> 100) for a FIXED unit
+// index, mirroring the text selectors so a bar rides the same curve as its line.
+// Markers mode reads the parent's markers, which is why the layer must be parented.
+//
+// The window is split into a REFERENCE duration (inRef/outRef — sets the marker-mode
+// span scale and the OUT start) and the ACTUAL window (inWin/outWin — how long the
+// channel takes). They differ only for a separate fade, whose window is shorter than
+// the transform's; outHead tail-aligns a short out-fade to the end of the out window.
+function bgAmts(c) {
+    var inRef = Math.max(1e-4, c.inRef), inWin = Math.max(1e-4, c.inWin);
+    var outRef = Math.max(1e-4, c.outRef), outWin = Math.max(1e-4, c.outWin), outHead = c.outHead || 0;
+    var s = CB_JS + ORD_JS + "var N=" + n2(c.N) + ";var i=" + n2(c.i) + ";var a=0,b=0;";
+    if (c.doIn) {
+        if (c.timingMode === "markers") {
+            s += "var mk=thisLayer.parent.marker,nM=mk.numKeys,mT=0,mD=-1,q,k;" +
+                 "for(q=1;q<=nM;q++){k=mk.key(q);if(k.comment=='IN'){mT=k.time;mD=k.duration;break;}}" +
+                 "if(mD>=0){if(mD<1e-4)mD=1e-4;var STAG=" + n2(c.stagger) + ",RD=" + n2(inRef) + ",AD=" + n2(inWin) + ";" +
+                 "var sc=mD/(STAG*(N-1)+RD);var slot=ord(i,N,'" + c.staggerDir + "',42);" +
+                 "var p=(time-mT-slot*STAG*sc)/(AD*sc);if(p<0)p=0;if(p>1)p=1;a=(1-CB(p," + bzArgs(c.bzIn) + "))*100;}";
+        } else {
+            s += "var slot=ord(i,N,'" + c.staggerDir + "',42);" +
+                 "var p=(time-" + n2(c.delay) + "-slot*" + n2(c.stagger) + ")/" + n2(inWin) + ";" +
+                 "if(p<0)p=0;if(p>1)p=1;a=(1-CB(p," + bzArgs(c.bzIn) + "))*100;";
+        }
+    }
+    if (c.doOut) {
+        if (c.timingMode === "markers") {
+            s += "var mo=thisLayer.parent.marker,nO=mo.numKeys,oT=-1,oD=0,q2,k2;" +
+                 "for(q2=1;q2<=nO;q2++){k2=mo.key(q2);if(k2.comment=='OUT'){oT=k2.time;oD=k2.duration;break;}}" +
+                 "if(oT>=0){if(oD<1e-4)oD=1e-4;var SG=" + n2(c.outStag) + ",RD2=" + n2(outRef) + ",AD2=" + n2(outWin) + ",HO=" + n2(outHead) + ";" +
+                 "var sc2=oD/(SG*(N-1)+RD2);var so=ord(i,N,'" + c.outDir + "',84);" +
+                 "var po=(time-oT-(so*SG+HO)*sc2)/(AD2*sc2);if(po<0)po=0;if(po>1)po=1;b=CB(po," + bzArgs(c.bzOut) + ")*100;}";
+        } else {
+            s += "var inEnd=" + n2(c.delay) + "+" + n2(c.inSettle) + "+" + n2(c.stagger) + "*(N-1);" +
+                 "var outStart=inEnd+" + n2(c.hold) + "+" + n2(outHead) + ";var so=ord(i,N,'" + c.outDir + "',84);" +
+                 "var po=(time-outStart-so*" + n2(c.outStag) + ")/" + n2(outWin) + ";" +
+                 "if(po<0)po=0;if(po>1)po=1;b=CB(po," + bzArgs(c.bzOut) + ")*100;";
+        }
+    }
+    return s;
+}
+
+// Escape a layer name for use inside an expression string literal.
+function esc(s) { return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
+
+// Build the bars, LIVE. Each bar's width tracks a hidden helper text layer that
+// slices one line out of the source via a sourceText expression, so editing the
+// text re-flows the bar with no re-run. Height is a uniform cap+descender metric
+// (baked; re-run to follow a font-size change). Padding is two live Slider Controls
+// on the shape layer. Returns how many bars were made.
+function buildLineBg(comp, src, c) {
+    var td = srcTextProp(src).value;
+    var leading = td.autoLeading ? td.fontSize * 1.2 : td.leading;
+    if (!leading || leading <= 0) leading = td.fontSize * 1.2;
+    var lines = String(td.text).split(/[\r\n]/);
+    var srcRef = esc(src.name);
+
+    // Uniform bar height from a cap+descender metric, on a throwaway duplicate.
+    var metric = src.duplicate();
+    metric.name = "TA BG Metric"; metric.enabled = false;
+    var mag = animatorsOf(metric);
+    for (var z = mag.numProperties; z >= 1; z--) if (/^TA /.test(mag.property(z).name)) mag.property(z).remove();
+    var mmp = srcTextProp(metric); var mmv = mmp.value; mmv.text = "Hg"; mmp.setValue(mmv);
+    var mb = metric.sourceRectAtTime(0, false);
+    var H = mb.height, topY = mb.top;
+    metric.remove();
+
+    var sh = comp.layers.addShape();
+    sh.name = "TA Background";
+    var fxp = sh.property("ADBE Effect Parade");
+    var padX = fxp.addProperty("ADBE Slider Control"); padX.name = "Padding X"; padX.property(1).setValue(c.padX);
+    var padY = fxp.addProperty("ADBE Slider Control"); padY.name = "Padding Y"; padY.property(1).setValue(c.padY);
+    var root = sh.property("ADBE Root Vectors Group");
+
+    // Sliders live on THIS layer, so effect() resolves without a layer name (rename-proof).
+    var padExpr = "var px=effect('Padding X')(1);var py=effect('Padding Y')(1);";
+
+    var unitIdx = 0, made = 0, i;
+    for (i = 0; i < lines.length; i++) {
+        var lineTxt = lines[i];
+        if (!lineTxt.replace(/\s/g, "").length) continue;   // blank line: no bar, but it still costs leading
+
+        // Hidden helper: duplicate of src, its text driven to line i live, TA animators
+        // stripped (they don't affect sourceRectAtTime but keep it clean/light).
+        var hp = src.duplicate();
+        hp.name = "TA BG Src " + (i + 1);
+        hp.enabled = false; hp.shy = true;
+        var hag = animatorsOf(hp);
+        for (var y2 = hag.numProperties; y2 >= 1; y2--) if (/^TA /.test(hag.property(y2).name)) hag.property(y2).remove();
+        srcTextProp(hp).expression =
+            "var t=thisComp.layer('" + srcRef + "').text.sourceText;" +
+            "var L=t.split(/[\\r\\n]/);L.length>" + i + "?L[" + i + "]:''";
+
+        var boxExpr = "var h=thisComp.layer('TA BG Src " + (i + 1) + "');h.text.sourceText;" +
+                      "var s=h.sourceRectAtTime(time,false);";
+        var cy = topY + H / 2 + leading * i;
+
+        var g = root.addProperty("ADBE Vector Group");
+        g.name = "TA BG Line " + (i + 1);
+        var cont = g.property("ADBE Vectors Group");
+        var rc = cont.addProperty("ADBE Vector Shape - Rect");
+        rc.property("ADBE Vector Rect Roundness").setValue(c.radius);
+        rc.property("ADBE Vector Rect Position").setValue([0, 0]);       // centred on group origin
+        rc.property("ADBE Vector Rect Size").expression = boxExpr + padExpr + "[s.width+px*2," + n2(H) + "+py*2]";
+        var fl = cont.addProperty("ADBE Vector Graphic - Fill");
+        fl.property("ADBE Vector Fill Color").setValue([c.color[0], c.color[1], c.color[2], 1]);
+
+        var tg = g.property("ADBE Vector Transform Group");
+        tg.property("ADBE Vector Anchor").setValue([0, 0]);
+
+        // Amounts share everything but the window. Transforms run on the transform
+        // duration; opacity runs on the fade window when a separate fade is set (so a
+        // bar fades in the same time as its text), tail-aligning a short out-fade.
+        var amtBase = {
+            N: c.N, i: unitIdx, doIn: c.doIn, doOut: c.doOut, timingMode: c.timingMode,
+            bzIn: c.bzIn, delay: c.delay, stagger: c.stagger, staggerDir: c.staggerDir,
+            inSettle: c.inSettle, hold: c.hold, bzOut: c.bzOut, outStag: c.outStag, outDir: c.outDir
+        };
+        function amts(inWin, outWin, outHead) {
+            var o = {}; for (var k in amtBase) o[k] = amtBase[k];
+            o.inRef = c.duration; o.inWin = inWin;
+            o.outRef = c.outDur;  o.outWin = outWin; o.outHead = outHead;
+            return bgAmts(o);
+        }
+        var xfPre = (c.doIn || c.doOut) ? amts(c.duration, c.outDur, 0) : "var a=0,b=0;";
+        var opInWin  = c.fadeInSep  ? c.fadeInDur  : c.duration;
+        var opOutWin = c.fadeOutSep ? c.fadeOutDur : c.outDur;
+        var opOutHd  = c.fadeOutSep ? Math.max(0, c.outDur - c.fadeOutDur) : 0;
+        var opPre = (c.doIn || c.doOut) ? amts(opInWin, opOutWin, opOutHd) : "var a=0,b=0;";
+
+        // Position: live x from the line's box + animation offset; y baked + offset.
+        tg.property("ADBE Vector Position").expression = xfPre + boxExpr +
+            "[s.left+s.width/2+(" + n2(c.tx) + ")*a/100+(" + n2(c.outTX) + ")*b/100," +
+            n2(cy) + "+(" + n2(c.ty) + ")*a/100+(" + n2(c.outTY) + ")*b/100]";
+        if (c.doIn || c.doOut) {
+            if (c.opFrom !== 100 || c.outOp !== 100) {
+                tg.property("ADBE Vector Group Opacity").expression = opPre +
+                    "var oi=100+(" + n2(c.opFrom) + "-100)*a/100;" +
+                    "var oo=100+(" + n2(c.outOp) + "-100)*b/100;oi*oo/100";
+            }
+            if (c.scaleFrom !== 100 || c.outScale !== 100) {
+                tg.property("ADBE Vector Scale").expression = xfPre +
+                    "var si=100+(" + n2(c.scaleFrom) + "-100)*a/100;" +
+                    "var ss=100+(" + n2(c.outScale) + "-100)*b/100;var sc=si*ss/100;[sc,sc]";
+            }
+        }
+        unitIdx += unitCount(lineTxt, c.splitMode);
+        made++;
+    }
+    sh.moveAfter(src);          // behind the text (helpers are hidden, order-agnostic)
+    sh.parent = src;            // inherit the layer transform; markers resolve via parent
+    sh.property("ADBE Transform Group").property("ADBE Position").setValue([0, 0]);
+    // addShape()/duplicate() steal the selection, which would make the next run fail
+    // its "select exactly one text layer" check. Hand it back.
+    sh.selected = false;
+    src.selected = true;
+    return made;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 function TA_animate(p) {
     p = p || {};
@@ -269,6 +435,12 @@ function TA_animate(p) {
     var maskReveal = (p.maskReveal === true);
     var maskPad    = clamp(num(p.maskPadding, 0), -200, 400);
 
+    var bgOn     = (p.bgEnable === true);
+    var bgColor  = hexToArr(p.bgColor) || [0.05, 0.35, 1];
+    var bgRadius = clamp(num(p.bgRadius, 0), 0, 400);
+    var bgPadX   = clamp(num(p.bgPadX, 16), -200, 400);
+    var bgPadY   = clamp(num(p.bgPadY, 8), -200, 400);
+
     if (!doIn) { translateX = 0; translateY = 0; scaleFrom = 100; opFrom = 100; blurFrom = 0; rotFrom = 0; colIn = null; }
 
     app.beginUndoGroup("Text Animator");
@@ -279,7 +451,10 @@ function TA_animate(p) {
         for (var a = ag.numProperties; a >= 1; a--) { if (/^TA /.test(ag.property(a).name)) ag.property(a).remove(); }
         var mpar0 = src.property("ADBE Mask Parade");
         for (var mm0 = mpar0.numProperties; mm0 >= 1; mm0--) { if (/^TA /.test(mpar0.property(mm0).name)) mpar0.property(mm0).remove(); }
-        for (var ll0 = comp.numLayers; ll0 >= 1; ll0--) { if (/^TA Line /.test(comp.layer(ll0).name)) comp.layer(ll0).remove(); }
+        for (var ll0 = comp.numLayers; ll0 >= 1; ll0--) {
+            var nm0 = comp.layer(ll0).name;
+            if (/^TA Line /.test(nm0) || /^TA Background$/.test(nm0) || /^TA BG Src /.test(nm0) || /^TA BG (Probe|Metric)$/.test(nm0)) comp.layer(ll0).remove();
+        }
         src.enabled = true; // undo any split-version disable
 
         var n = unitCount(full, splitMode);
@@ -398,10 +573,27 @@ function TA_animate(p) {
             if (sbox) addTightMask(src, sbox, maskPad);
         }
 
+        var bgMade = 0;
+        if (bgOn) {
+            bgMade = buildLineBg(comp, src, {
+                N: n, splitMode: splitMode, timingMode: timingMode,
+                color: bgColor, radius: bgRadius, padX: bgPadX, padY: bgPadY,
+                doIn: doIn, doOut: doOut,
+                bzIn: bzIn, delay: delay, duration: duration, stagger: stagger,
+                staggerDir: staggerDir, inSettle: inSettle, hold: hold,
+                bzOut: bzOut, outDur: outDur, outStag: outStag, outDir: outDir,
+                opFrom: opFrom, outOp: outOp, tx: translateX, ty: translateY,
+                outTX: outTX, outTY: outTY, scaleFrom: scaleFrom, outScale: outScale,
+                fadeInSep: fadeInSep, fadeInDur: fadeInDur, fadeOutSep: fadeOutSep, fadeOutDur: fadeOutDur
+            });
+        }
+
         var noun = "characters";
         if (splitMode === "line") noun = "lines";
         else if (splitMode === "word") noun = "words";
-        return "OK|Animated " + n + " " + noun + " — " + (Math.round(outEnd * 100) / 100) + "s total.";
+        return "OK|Animated " + n + " " + noun +
+               (bgMade ? (" + " + bgMade + " background bar" + (bgMade === 1 ? "" : "s")) : "") +
+               " — " + (Math.round(outEnd * 100) / 100) + "s total.";
     } catch (e) {
         return "ERR|" + e.toString() + (e.line ? (" (line " + e.line + ")") : "");
     } finally {
